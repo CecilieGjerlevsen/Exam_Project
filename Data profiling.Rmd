@@ -7,9 +7,9 @@ output: html_document
 Loading the three datasets
 ```{r, echo=FALSE}
 #Loading the dataset
-application <- read.csv("application_data.csv")
+application_data <- read.csv("application_data.csv")
 descriptions <- read.csv("columns_description.csv")
-previous <- read.csv("previous_application.csv")
+previous_applications <- read.csv("previous_application.csv")
 ```
 
 Loading packages:
@@ -29,18 +29,62 @@ pacman::p_load(
   tidyquant, #for theme_tq
   prismatic, #for color handling in plots
   gganimate, #for animated plots
-  gifski #for rendering animated plots as GIFs instead of single frames
+  gifski, #for rendering animated plots as GIFs instead of single frames
+  tidyverse,
+  skimr
 )
 ```
 
 ##Data profiling
+# Cardinalities (single-column analysis)
+```{r}
+#Number of rows and columns
+dim(application_data)
+
+str(application_data)
+
+summary(application_data)
+```
+
+```{r}
+# Data overview
+skim(application_data)
+
+#Using options() to ensure that numbers are not displayed in scientific notation
+options(scipen = 999)
+
+#Inspecting the % of missing values across all columns
+cardinalities <- t(as.data.frame(map(application_data, ~mean(is.na(.)))))
+colnames(cardinalities) <- "Percentage_missing"
+```
+
+## Data cleaning
+Data cleaning involves either finding and removing columns or rows with null values or replacing the null value with any suitable value. This is done to make a reliable analysis.
+Their deletion depends on whether a given column adds value to our analysis or not.
+But at any given point removing columns with more than 30% data seems logical though there is no said rule for it.
+
+```{r}
+# Counting the number of variables with more than 40% missing values
+application_data <- as.data.frame(application_data)
+missing <- colSums(is.na(application_data))
+
+cardinalities <- as.data.frame(missing)
+n <- nrow(application_data)
+limit <- 0.4 * n
+
+cardinalities$delete <- cardinalities$missing > limit
+```
+
+Whether we choose to remove columns with 20 or 48% missing values results in the same number of columns removed (45). 
+
+# Multi-column analysis
 
 
 
 
 
 
-Inspecting the % of missing values across all columns
+
 
 
 
