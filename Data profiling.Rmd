@@ -1,0 +1,48 @@
+---
+title: "Loan defaults"
+date: "12/06/2021"
+output: html_document
+---
+
+Loading the three datasets
+```{r, echo=FALSE}
+#Loading the dataset
+application <- read.csv("application_data.csv")
+descriptions <- read.csv("columns_description.csv")
+previous <- read.csv("previous_application.csv")
+```
+
+Loading packages:
+```{r, echo=FALSE}
+pacman::p_load(
+  ggplot2, #for plotting graphics
+  ggmap, #for plotting maps
+  RColorBrewer, #provide pretty colour palettes
+  lubridate, #for converting time variables into date format
+  hrbrthemes, #for more style themes
+  data.table, #for working with data.table
+  dplyr, #for count function
+  tidytext, #for text mining functions such as unnest()
+  wordcloud,
+  tm, #for removing stopwords
+  ggdist, #for raincloud plots
+  tidyquant, #for theme_tq
+  prismatic, #for color handling in plots
+  gganimate, #for animated plots
+  gifski #for rendering animated plots as GIFs instead of single frames
+)
+```
+
+##Data profiling
+
+
+
+
+
+
+Inspecting the % of missing values across all columns
+
+
+
+
+
