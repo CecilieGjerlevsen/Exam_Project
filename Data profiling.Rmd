@@ -12,7 +12,6 @@ Loading the three datasets
 application_data <- read.csv("application_data.csv")
 application_data <- as.data.table(application_data)
 descriptions <- read.csv("columns_description.csv")
-previous_applications <- read.csv("previous_application.csv")
 ```
 
 Loading packages:
@@ -35,7 +34,8 @@ pacman::p_load(
   gifski, #for rendering animated plots as GIFs instead of single frames
   tidyverse,
   skimr,
-  psych
+  psych,
+  ggcorrplot
 )
 ```
 
@@ -49,7 +49,6 @@ str(application_data)
 #Inspecting the % of missing values across all columns
 #NA_inspection <- t(as.data.frame(map(application_data, ~mean(is.na(.)))))
 #colnames(NA_inspection) <- "Percentage_missing"
-
 ```
 
 #Data inspection - general summary statistics
@@ -72,17 +71,14 @@ cardinalities$distinct <- sapply(application_data, n_distinct)
 cardinalities$missing <- colSums(is.na(application_data)) 
 
 #We now inspect the 'Cardinalities' datatable to see if any irregularities pop up. We notice:
-# CODE_gender (3 distinct), CNT_children (max of 19), AMT_INCOME_TOAL and AMT_credit (only 2548 and 5603 distinct values),
+# CODE_gender (3 distinct), CNT_children (max of 19), AMT_INCOME_TOAL and AMT_credit (only 2548 and 5603 distinct values)
 #when inspecting the columns which are denominated in a currency, we thought the values were higher than expected, since we thought it was in american $, however we are now under the impression that it is in Indian rupees. 
 
+#The variables called FLAG_Document_# (from 2-21) all have different means indicating that there is a difference in how many documents each applicant have handed in. However, we do not have any information about the content of each document. To use the information in these variables in more manageable way, we aggregate them to one new variables, which counts the number of documents each applicant has submitted.
+
 #We start out by checking the binary variables to see if they all have 2 distinct values. We observe that 'CODE_Gender' has 3 distinct values, where one of them is 'XNA'. We check how many of the observations have this value. 
-unique(application_data2$CODE_GENDER) #view the distinct values
+unique(application_data$CODE_GENDER) #view the distinct values
 sum(application_data$CODE_GENDER == "XNA") #counting the number of distinct values of CODE_gender, the number is 4.
-
-
-
-
-
 ```
 
 ## Data cleaning
@@ -90,23 +86,38 @@ sum(application_data$CODE_GENDER == "XNA") #counting the number of distinct valu
 Their deletion depends on whether a given column adds value to our analysis or not.
 But at any given point removing columns with more than 30% data seems logical though there is no said rule for it."
 
-#Removing columns with NA values over a limit.
+#Aggregating information on documents into one new variable, DOCUMENTS_PROVIDED
+```{r}
+master_data <- application_data
+master_data$DOCUMENTS_PROVIDED <- rowSums(select(master_data,c(97:116)) == "1")
+
+#Then, we remove the binary document variables
+master_data <- master_data[,-c(97:116)]
+```
+
+#Removing columns with NA values over a limit of 40%
 ```{r}
 # Counting the number of variables with more than 40% missing values.
-
-n <- nrow(application_data) 
+n <- nrow(master_data) 
 limit <- 0.4 * n #setting a limit for which columns to remove, where the limit is set to be 40%
 
 cardinalities$delete <- cardinalities$missing > limit #creating a column with TRUE and FALSE values depending on whether the column should be deleted or not
 
 sum(cardinalities$delete) #counting the number of columns to be deleted
 
-application_data2 <- application_data[, which(colMeans(is.na(application_data)) < 0.4)] #creating a new dataset where the 45 columns are deleted. 
-
+master_data <- master_data[, which(colMeans(is.na(master_data)) < 0.4)] #Overwriting the dataset where the 45 columns are deleted. 
 ```
 
 Whether we choose to remove columns with 20 or 48% missing values results in the same number of columns removed (45). When delaing with many missing values, you can choose between different alternatives: Remove the columns, remove the entire row (in this case loan applicant) or insert some sort of proxy (i.e. the mean or median of the column). In this case we consider the best option to be to delete the columns, since we deem this to be the option that will result in the least bias. Furthermore going through the columns to delete, they are not deemed as essential features for our analysis. 
 
+#Correlation analysis on the remaining 58 variables is conducted to remove unnecessary columns
+```{r}
+data_cor <- as.data.frame(cor(master_data[ ,sapply(master_data,is.numeric)], use = "complete.obs")[,2])
+names(data_cor)[1] <- "correlation"
+
+ggcorrplot(data_cor)
+
+```
 
 
 
