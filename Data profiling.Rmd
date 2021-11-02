@@ -2,12 +2,15 @@
 title: "Loan defaults"
 date: "12/06/2021"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 Loading the three datasets
 ```{r, echo=FALSE}
 #Loading the dataset
 application_data <- read.csv("application_data.csv")
+application_data <- as.data.table(application_data)
 descriptions <- read.csv("columns_description.csv")
 previous_applications <- read.csv("previous_application.csv")
 ```
@@ -31,7 +34,8 @@ pacman::p_load(
   gganimate, #for animated plots
   gifski, #for rendering animated plots as GIFs instead of single frames
   tidyverse,
-  skimr
+  skimr,
+  psych
 )
 ```
 
@@ -40,46 +44,68 @@ pacman::p_load(
 ```{r}
 #Number of rows and columns
 dim(application_data)
-
 str(application_data)
 
-summary(application_data)
+#Inspecting the % of missing values across all columns
+#NA_inspection <- t(as.data.frame(map(application_data, ~mean(is.na(.)))))
+#colnames(NA_inspection) <- "Percentage_missing"
+
 ```
 
+#Data inspection - general summary statistics
 ```{r}
 # Data overview
-skim(application_data)
 
 #Using options() to ensure that numbers are not displayed in scientific notation
 options(scipen = 999)
 
-#Inspecting the % of missing values across all columns
-cardinalities <- t(as.data.frame(map(application_data, ~mean(is.na(.)))))
-colnames(cardinalities) <- "Percentage_missing"
+#counting max, min, mean, median of each of the columns
+cardinalities <- as.data.table(describe(application_data),keep.rownames=TRUE)
+
+#Getting the datatype/class of each column
+cardinalities$class <- sapply(application_data,class)
+
+#Now we want to get the numnber of unique values in each of the columns
+cardinalities$distinct <- sapply(application_data, n_distinct)
+
+#Calculating the number of NA in each column
+cardinalities$missing <- colSums(is.na(application_data)) 
+
+#We now inspect the 'Cardinalities' datatable to see if any irregularities pop up. We notice:
+# CODE_gender (3 distinct), CNT_children (max of 19), AMT_INCOME_TOAL and AMT_credit (only 2548 and 5603 distinct values),
+#when inspecting the columns which are denominated in a currency, we thought the values were higher than expected, since we thought it was in american $, however we are now under the impression that it is in Indian rupees. 
+
+#We start out by checking the binary variables to see if they all have 2 distinct values. We observe that 'CODE_Gender' has 3 distinct values, where one of them is 'XNA'. We check how many of the observations have this value. 
+unique(application_data2$CODE_GENDER) #view the distinct values
+sum(application_data$CODE_GENDER == "XNA") #counting the number of distinct values of CODE_gender, the number is 4.
+
+
+
+
+
 ```
 
 ## Data cleaning
-Data cleaning involves either finding and removing columns or rows with null values or replacing the null value with any suitable value. This is done to make a reliable analysis.
+"Data cleaning involves either finding and removing columns or rows with null values or replacing the null value with any suitable value. This is done to make a reliable analysis.
 Their deletion depends on whether a given column adds value to our analysis or not.
-But at any given point removing columns with more than 30% data seems logical though there is no said rule for it.
+But at any given point removing columns with more than 30% data seems logical though there is no said rule for it."
 
+#Removing columns with NA values over a limit.
 ```{r}
-# Counting the number of variables with more than 40% missing values
-application_data <- as.data.frame(application_data)
-missing <- colSums(is.na(application_data))
+# Counting the number of variables with more than 40% missing values.
 
-cardinalities <- as.data.frame(missing)
-n <- nrow(application_data)
-limit <- 0.4 * n
+n <- nrow(application_data) 
+limit <- 0.4 * n #setting a limit for which columns to remove, where the limit is set to be 40%
 
-cardinalities$delete <- cardinalities$missing > limit
+cardinalities$delete <- cardinalities$missing > limit #creating a column with TRUE and FALSE values depending on whether the column should be deleted or not
+
+sum(cardinalities$delete) #counting the number of columns to be deleted
+
+application_data2 <- application_data[, which(colMeans(is.na(application_data)) < 0.4)] #creating a new dataset where the 45 columns are deleted. 
+
 ```
 
-Whether we choose to remove columns with 20 or 48% missing values results in the same number of columns removed (45). 
-
-# Multi-column analysis
-
-
+Whether we choose to remove columns with 20 or 48% missing values results in the same number of columns removed (45). When delaing with many missing values, you can choose between different alternatives: Remove the columns, remove the entire row (in this case loan applicant) or insert some sort of proxy (i.e. the mean or median of the column). In this case we consider the best option to be to delete the columns, since we deem this to be the option that will result in the least bias. Furthermore going through the columns to delete, they are not deemed as essential features for our analysis. 
 
 
 
