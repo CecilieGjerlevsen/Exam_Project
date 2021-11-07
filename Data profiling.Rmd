@@ -90,11 +90,11 @@ master_data <- master_data[,-c(97:116)]
 
 #Changing the variables from days to years
 ```{r}
-master_data$age <- floor(abs(master_data$DAYS_BIRTH / 365))
-master_data$years_employed <- abs(master_data$DAYS_EMPLOYED / 365)
-master_data$years_registration <- abs(master_data$DAYS_REGISTRATION / 365)
-master_data$years_publish <- abs(master_data$DAYS_ID_PUBLISH / 365)
-master_data$years_phone_change <- abs(master_data$DAYS_LAST_PHONE_CHANGE / 365)
+master_data$AGE <- floor(abs(master_data$DAYS_BIRTH / 365))
+master_data$YEARS_EMPLOYED <- abs(master_data$DAYS_EMPLOYED / 365)
+master_data$YEARS_REGISTRATION <- abs(master_data$DAYS_REGISTRATION / 365)
+master_data$YEARS_PUBLISH <- abs(master_data$DAYS_ID_PUBLISH / 365)
+master_data$YEARS_PHONE_CHANGE <- abs(master_data$DAYS_LAST_PHONE_CHANGE / 365)
 
 #Removing the old variables
 master_data <- master_data[,!(names(master_data) %in% c("DAYS_BIRTH","DAYS_EMPLOYED","DAYS_REGISTRATION","DAYS_ID_PUBLISH","DAYS_LAST_PHONE_CHANGE"))]
@@ -409,11 +409,12 @@ imputed_data$AMT_REQ_CREDIT_BUREAU_QRT <- round(replace(imputed_data$AMT_REQ_CRE
 table(imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR)
 imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR)
 ```
+
 We combine the AMT_REQ_CREDIT variables into one variable. This is possible since the variables exclude each other. For example, the WEEK variable excludes one day before application.
 ```{r}
-imputed_data$enquiries <- imputed_data$AMT_REQ_CREDIT_BUREAU_HOUR + imputed_data$AMT_REQ_CREDIT_BUREAU_DAY + imputed_data$AMT_REQ_CREDIT_BUREAU_WEEK + imputed_data$AMT_REQ_CREDIT_BUREAU_MON + imputed_data$AMT_REQ_CREDIT_BUREAU_QRT + imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR
+imputed_data$ENQUIRIES <- imputed_data$AMT_REQ_CREDIT_BUREAU_HOUR + imputed_data$AMT_REQ_CREDIT_BUREAU_DAY + imputed_data$AMT_REQ_CREDIT_BUREAU_WEEK + imputed_data$AMT_REQ_CREDIT_BUREAU_MON + imputed_data$AMT_REQ_CREDIT_BUREAU_QRT + imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR
 
-table(imputed_data$enquiries)
+imputed_data <- imputed_data[,!(names(imputed_data) %in% c("AMT_REQ_CREDIT_BUREAU_HOUR","AMT_REQ_CREDIT_BUREAU_DAY","AMT_REQ_CREDIT_BUREAU_WEEK","AMT_REQ_CREDIT_BUREAU_MON","AMT_REQ_CREDIT_BUREAU_QRT","AMT_REQ_CREDIT_BUREAU_YEAR"))]
 ```
 
 
