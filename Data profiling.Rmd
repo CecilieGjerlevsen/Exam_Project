@@ -3,14 +3,13 @@ title: "Loan defaults"
 date: "12/06/2021"
 output: html_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 Loading the three datasets
 ```{r, echo=FALSE}
 #Loading the dataset
 application_data <- read.csv("application_data.csv")
-application_data <- as.data.table(application_data)
 descriptions <- read.csv("columns_description.csv")
 ```
 
@@ -35,8 +34,11 @@ pacman::p_load(
   tidyverse,
   skimr,
   psych,
-  ggcorrplot
+  ggcorrplot,
+  scales,
+  missMDA
 )
+
 ```
 
 ##Data profiling
@@ -44,7 +46,7 @@ pacman::p_load(
 ```{r}
 #Number of rows and columns
 dim(application_data)
-str(application_data)
+#str(application_data)
 
 #Inspecting the % of missing values across all columns
 #NA_inspection <- t(as.data.frame(map(application_data, ~mean(is.na(.)))))
@@ -52,7 +54,7 @@ str(application_data)
 ```
 
 #Data inspection - general summary statistics
-```{r}
+```{r, results='hide'}
 # Data overview
 
 #Using options() to ensure that numbers are not displayed in scientific notation
@@ -67,18 +69,9 @@ cardinalities$class <- sapply(application_data,class)
 #Now we want to get the numnber of unique values in each of the columns
 cardinalities$distinct <- sapply(application_data, n_distinct)
 
-#Calculating the number of NA in each column
-cardinalities$missing <- colSums(is.na(application_data)) 
-
-#We now inspect the 'Cardinalities' datatable to see if any irregularities pop up. We notice:
-# CODE_gender (3 distinct), CNT_children (max of 19), AMT_INCOME_TOAL and AMT_credit (only 2548 and 5603 distinct values)
-#when inspecting the columns which are denominated in a currency, we thought the values were higher than expected, since we thought it was in american $, however we are now under the impression that it is in Indian rupees. 
-
-#The variables called FLAG_Document_# (from 2-21) all have different means indicating that there is a difference in how many documents each applicant have handed in. However, we do not have any information about the content of each document. To use the information in these variables in more manageable way, we aggregate them to one new variables, which counts the number of documents each applicant has submitted.
-
-#We start out by checking the binary variables to see if they all have 2 distinct values. We observe that 'CODE_Gender' has 3 distinct values, where one of them is 'XNA'. We check how many of the observations have this value. 
-unique(application_data$CODE_GENDER) #view the distinct values
-sum(application_data$CODE_GENDER == "XNA") #counting the number of distinct values of CODE_gender, the number is 4.
+#Calculating the number of NA in each column, where we first replace all blanks "" with NA
+application_data[application_data == ""] <- NA
+cardinalities$missing <- colSums(is.na(application_data))
 ```
 
 ## Data cleaning
@@ -95,6 +88,18 @@ master_data$DOCUMENTS_PROVIDED <- rowSums(select(master_data,c(97:116)) == "1")
 master_data <- master_data[,-c(97:116)]
 ```
 
+#Changing the variables from days to years
+```{r}
+master_data$age <- floor(abs(master_data$DAYS_BIRTH / 365))
+master_data$years_employed <- abs(master_data$DAYS_EMPLOYED / 365)
+master_data$years_registration <- abs(master_data$DAYS_REGISTRATION / 365)
+master_data$years_publish <- abs(master_data$DAYS_ID_PUBLISH / 365)
+master_data$years_phone_change <- abs(master_data$DAYS_LAST_PHONE_CHANGE / 365)
+
+#Removing the old variables
+master_data <- master_data[,!(names(master_data) %in% c("DAYS_BIRTH","DAYS_EMPLOYED","DAYS_REGISTRATION","DAYS_ID_PUBLISH","DAYS_LAST_PHONE_CHANGE"))]
+```
+
 #Removing columns with NA values over a limit of 40%
 ```{r}
 # Counting the number of variables with more than 40% missing values.
@@ -105,19 +110,156 @@ cardinalities$delete <- cardinalities$missing > limit #creating a column with TR
 
 sum(cardinalities$delete) #counting the number of columns to be deleted
 
-master_data <- master_data[, which(colMeans(is.na(master_data)) < 0.4)] #Overwriting the dataset where the 45 columns are deleted. 
+master_data <- master_data[, which(colMeans(is.na(master_data)) < 0.4)] #Overwriting the dataset where the 49 columns are deleted. 
 ```
+
+## Plot of percentage missing values
+```{r}
+cardinalities$pct_missing <- cardinalities$missing/n * 100
+
+#options(repr.plot.width = 30, repr.plot.height = 0.75)
+
+cardinalities$rn <- factor(cardinalities$rn, levels = cardinalities$rn)
+
+cardinalities %>% 
+  ggplot(aes(rn,pct_missing)) +
+  geom_segment( aes(x=rn, xend=rn, y=0, yend=pct_missing)) +
+  geom_point(color = "blue") +
+  geom_hline(yintercept=40, linetype="dashed", color = "red") +
+  labs(x = "", y = "Percentage missing",title = "Percentage missing values in each column") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_discrete(limits=cardinalities$rn)
+```
+
 
 Whether we choose to remove columns with 20 or 48% missing values results in the same number of columns removed (45). When delaing with many missing values, you can choose between different alternatives: Remove the columns, remove the entire row (in this case loan applicant) or insert some sort of proxy (i.e. the mean or median of the column). In this case we consider the best option to be to delete the columns, since we deem this to be the option that will result in the least bias. Furthermore going through the columns to delete, they are not deemed as essential features for our analysis. 
 
+
 #Correlation analysis on the remaining 58 variables is conducted to remove unnecessary columns
+
+Trial and error start for "correct" plot with Gender variable
+```{r}
+#We want to plot if the nominal scaled variables have any correlation witht the TARGET variable to remove unnecessary variables. 
+ggplot(master_data, aes(x = TARGET, fill = CODE_GENDER)) + 
+  geom_bar(position = "dodge") + 
+  labs(y = "Count", x = "Target variable", fill = "Gender") + 
+  scale_x_continuous(breaks=c(0,1)) + 
+  scale_fill_discrete(labels = c("Female", "Male", "Unknown"))
+```
+Found the correct way to plot and will now go through all possible feature variables which are categorical or binary:
+
+Starting with the variables: Did the client provide XX? Column 22 to 27 in Master file.
+- Did client provide mobile phone (1=YES, 0=NO) = TO DROP
+- Did client provide work phone (1=YES, 0=NO) = TO KEEP
+- Did client provide home phone (1=YES, 0=NO) = TO DROP (two variables which indicate home phone, we remove this one because there is a discrepancy between name of variable and description of variable and multicollinarity)
+- Was mobile phone reachable (1=YES, 0=NO) = TO DROP
+- Did client provide home phone (1=YES, 0=NO) = TO KEEP
+- Did client provide email (1=YES, 0=NO) = TO KEEP
+
+```{r}
+for(i in 1:6) 
+ print(ggplot(master_data, aes(x = TARGET, fill = factor(master_data[,c(17+i)]))) +
+ geom_bar(position = "dodge") +
+ labs(y = "Count", x = "Target variable", fill = "Did client provide XX?") + 
+ scale_x_continuous(breaks=c(0,1)) + 
+ scale_fill_discrete(labels = c("No", "Yes")))
+```
+
+NOW WE REMOVE THE VARIABLES "FLAG_MOBIL" "FLAG_WORK_PHONE" and "FLAG_CONT_MOBILE"
+```{r}
+master_data <- master_data[,!(names(master_data) %in% c("FLAG_MOBIL", "FLAG_WORK_PHONE", "FLAG_CONT_MOBILE"))]
+```
+
+Now we check the variables FLAG_OWN_CAR and FLAG_OWN_REALTY, TO KEEP BOTH
+```{r}
+for(i in 1:2) 
+ print(ggplot(master_data, aes(x = TARGET, fill = factor(master_data[,c(4+i)]))) +
+ geom_bar(position = "dodge") +
+ labs(y = "Count", x = "Target variable", fill = "Do client own XX?") + 
+ scale_x_continuous(breaks=c(0,1)) + 
+ scale_fill_discrete(labels = c("No", "Yes")))
+```
+
+
+We check the variables regarding if addresses match some other info:
+```{r}
+for(i in 1:6) 
+ print(ggplot(master_data, aes(x = TARGET, fill = factor(master_data[,c(26+i)]))) +
+ geom_bar(position = "dodge") +
+ labs(y = "Count", x = "Target variable", fill = "Does XX match YY?") +
+ scale_x_continuous(breaks=c(0,1)) + 
+ scale_fill_discrete(labels = c("Same","Different")))
+```
+
+```{r}
+model.matrix(~0+., master_data[,c("REG_REGION_NOT_LIVE_REGION","REG_REGION_NOT_WORK_REGION","LIVE_REGION_NOT_WORK_REGION","REG_CITY_NOT_LIVE_CITY","REG_CITY_NOT_WORK_CITY","LIVE_CITY_NOT_WORK_CITY","TARGET")]) %>% 
+  cor(use="pairwise.complete.obs") %>% 
+  ggcorrplot(show.diag = F, type="lower", lab=TRUE, lab_size=2)
+```
+
+We remove the 3 variables which are related to region, since if it matches at the city level it is expected to also match at region level.
+```{r}
+master_data <- master_data[,!(names(master_data) %in% c("REG_REGION_NOT_LIVE_REGION","REG_REGION_NOT_WORK_REGION","LIVE_REGION_NOT_WORK_REGION"))]
+```
+
+#WE MAKE CORRELATIONS PLOT TO FIND UNECCESSARY VARIABLES
 ```{r}
 data_cor <- as.data.frame(cor(master_data[ ,sapply(master_data,is.numeric)], use = "complete.obs")[,2])
 names(data_cor)[1] <- "correlation"
 
-ggcorrplot(data_cor)
+ggcorrplot(data_cor, lab = TRUE)
 
 ```
+Making a new cardinalities for the final dataset:
+```{r}
+#counting max, min, mean, median of each of the columns
+cardinalities_master <- as.data.table(describe(master_data),keep.rownames=TRUE)
+
+#Getting the datatype/class of each column
+cardinalities_master$class <- sapply(master_data,class)
+
+#Now we want to get the numnber of unique values in each of the columns
+cardinalities_master$distinct <- sapply(master_data, n_distinct)
+```
+
+We now inspect the 'Cardinalities' datatable to see if any irregularities pop up. We notice:
+CODE_gender (3 distinct), CNT_children (max of 19), AMT_INCOME_TOAL and AMT_credit (only 2548 and 5603 distinct values)
+
+when inspecting the columns which are denominated in a currency, we thought the values were higher than expected, since we thought it was in american $, however we are now under the impression that it is in Indian rupees. 
+
+The variables called FLAG_Document_# (from 2-21) all have different means indicating that there is a difference in how many documents each applicant have handed in. However, we do not have any information about the content of each document. To use the information in these variables in more manageable way, we aggregate them to one new variables, which counts the number of documents each applicant has submitted.
+
+We start out by checking the binary variables to see if they all have 2 distinct values. We observe that 'CODE_Gender' has 3 distinct values, where one of them is 'XNA'. We check how many of the observations have this value. 
+
+```{r}
+unique(master_data$CODE_GENDER) #view the distinct values
+sum(master_data$CODE_GENDER == "XNA")
+sum(master_data$CODE_GENDER == "M") / nsum(master_data$CODE_GENDER == "M") / n
+```
+counting the number of distinct values of CODE_gender, the number is 4, and the most frequent gender is female.
+
+
+#IMPUTATION
+Generalized Imputation: In this case, we calculate the mean or median for all non missing values of that variable then replace missing value with mean or median.
+
+We replace XNA with the female as this is the most common gender, 65% female
+
+Impute missing values in application_data:
+For categorical variables with low null percentage, impute with the most frequent items.
+For categorical variables with high null percentage, create new category as not to influence the analysis.
+AMT_REQ_CREDIT_BUREAU_X, numerical variables which represent number of enquiries made, have low null percentages and no outliers. We will impute with median -- mean() returns decimal values while these columns represent number of enquiries made, which cannot be decimal.
+
+```{r}
+imputed_data <- mice(master_data, m=5, maxit = 50, method = 'pmm', seed = 500)
+```
+
+
+
+
+
+
+
+
 
 
 
