@@ -135,7 +135,7 @@ cardinalities %>%
 Whether we choose to remove columns with 20 or 48% missing values results in the same number of columns removed (45). When delaing with many missing values, you can choose between different alternatives: Remove the columns, remove the entire row (in this case loan applicant) or insert some sort of proxy (i.e. the mean or median of the column). In this case we consider the best option to be to delete the columns, since we deem this to be the option that will result in the least bias. Furthermore going through the columns to delete, they are not deemed as essential features for our analysis. 
 
 
-#Correlation analysis on the remaining 58 variables is conducted to remove unnecessary columns
+#Correlation analysis on the remaining variables is conducted to remove unnecessary columns
 
 Trial and error start for "correct" plot with Gender variable
 ```{r}
@@ -200,6 +200,17 @@ model.matrix(~0+., master_data[,c("REG_REGION_NOT_LIVE_REGION","REG_REGION_NOT_W
 We remove the 3 variables which are related to region, since if it matches at the city level it is expected to also match at region level.
 ```{r}
 master_data <- master_data[,!(names(master_data) %in% c("REG_REGION_NOT_LIVE_REGION","REG_REGION_NOT_WORK_REGION","LIVE_REGION_NOT_WORK_REGION"))]
+```
+
+Furthermore, we notice the variables about social surroundings, which we expect to have high correlations:
+```{r}
+model.matrix(~0+., master_data[,c("OBS_30_CNT_SOCIAL_CIRCLE","DEF_30_CNT_SOCIAL_CIRCLE","OBS_60_CNT_SOCIAL_CIRCLE","DEF_60_CNT_SOCIAL_CIRCLE","TARGET")]) %>% 
+  cor(use="pairwise.complete.obs") %>% 
+  ggcorrplot(show.diag = F, type="lower", lab=TRUE, lab_size=2)
+```
+We remove the 30-day variables since the 60 day variables all else equal must contain more information:
+```{r}
+master_data <- master_data[,!(names(master_data) %in% c("OBS_30_CNT_SOCIAL_CIRCLE","DEF_30_CNT_SOCIAL_CIRCLE"))]
 ```
 
 #WE MAKE CORRELATIONS PLOT TO FIND UNECCESSARY VARIABLES
@@ -273,6 +284,7 @@ We now have to go through the numerical values which have missing values:
 for(i in 1:ncol(imputed_data))
   imputed_data[ , i][is.na(imputed_data[ , i])] <- mean(imputed_data[ , i], na.rm=TRUE)
 ```
+
 Making a new cardinalities for the dataset with no missing values:
 ```{r}
 #counting max, min, mean, median of each of the columns
@@ -302,7 +314,7 @@ count(imputed_data,ORGANIZATION_TYPE)
 
 We now look at min and max to see if anything doesn't match our expectations.
 - Income variable: AMT_INCOME_TOTAL
-- 
+- Number of children: CNT_CHILDREN
 
 
 We now look at the income variable:
@@ -317,8 +329,92 @@ sum(imputed_data$AMT_INCOME_TOTAL > 30000000)
 imputed_data$AMT_INCOME_TOTAL <- replace(imputed_data$AMT_INCOME_TOTAL,imputed_data$AMT_INCOME_TOTAL > 30000000, mean(imputed_data$AMT_INCOME_TOTAL))
 ```
 
+We now look at the children variable:
+```{r}
+imputed_data %>% 
+  ggplot(aes(CNT_CHILDREN)) +
+  geom_bar()
+
+table(imputed_data$CNT_CHILDREN)
+```
+Since there are no observations between 14 and 19 children, the two with 19 children could be outliers. 
+
+We therefore compare the variable to the number of family members (CNT_FAM_MEMBERS)
+```{r}
+imputed_data %>% 
+  ggplot(aes(CNT_FAM_MEMBERS)) +
+  geom_bar()
+
+table(imputed_data$CNT_FAM_MEMBERS)
+
+sum(imputed_data$CNT_CHILDREN > imputed_data$CNT_FAM_MEMBERS)
+
+#imputed_data[with(imputed_data, order(-CNT_CHILDREN)),]
+```
+Comparing the CNT_FAM_MEMBERS and CNT_CHILDREN variables, we can see that all CNT_CHILDREN variables are smaller than CNT_FAM_MEMBERS.
+
+We round the variables in CNT_FAM_MEMBERS, because there are two observations that are not integers. 
+```{r}
+imputed_data$CNT_FAM_MEMBERS <- round(imputed_data$CNT_FAM_MEMBERS)
+```
+
+We now look at the credit variable:
+```{r}
+ggplot(imputed_data,aes(AMT_CREDIT)) + 
+  geom_dots()
+```
+We now look at the ANNUITY variable:
+```{r}
+ggplot(imputed_data,aes(AMT_ANNUITY)) + 
+  geom_dots()
+```
 
 
+We now look at the GOODS_PRICE variable:
+```{r}
+ggplot(imputed_data,aes(AMT_GOODS_PRICE)) + 
+  geom_dots()
+```
+The variable OBS_60_CNT_SOCIAL_CIRCLE has a high maximum. We inspect the variable further:
+```{r}
+ggplot(imputed_data,aes(OBS_60_CNT_SOCIAL_CIRCLE)) + 
+  geom_dots()
+
+table(imputed_data$OBS_60_CNT_SOCIAL_CIRCLE)
+```
+The high observation looks like an outlier, so it is imputed by the mean:
+```{r}
+imputed_data$OBS_60_CNT_SOCIAL_CIRCLE <- replace(imputed_data$OBS_60_CNT_SOCIAL_CIRCLE,imputed_data$OBS_60_CNT_SOCIAL_CIRCLE > 300, mean(imputed_data$OBS_60_CNT_SOCIAL_CIRCLE))
+```
+We inspect the AMT_REQ_CREDIT variables and rounding indistinct variables:
+```{r}
+table(imputed_data$AMT_REQ_CREDIT_BUREAU_HOUR)
+imputed_data$AMT_REQ_CREDIT_BUREAU_HOUR <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_HOUR)
+
+table(imputed_data$AMT_REQ_CREDIT_BUREAU_DAY)
+imputed_data$AMT_REQ_CREDIT_BUREAU_DAY <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_DAY)
+
+table(imputed_data$AMT_REQ_CREDIT_BUREAU_WEEK)
+imputed_data$AMT_REQ_CREDIT_BUREAU_WEEK <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_WEEK)
+
+table(imputed_data$AMT_REQ_CREDIT_BUREAU_MON)
+imputed_data$AMT_REQ_CREDIT_BUREAU_MON <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_MON)
+
+table(imputed_data$AMT_REQ_CREDIT_BUREAU_QRT)
+imputed_data$AMT_REQ_CREDIT_BUREAU_QRT <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_QRT)
+
+#The large observation 0f 261 enquiries for QRT are imputed with the rounded mean of thevariable
+imputed_data$AMT_REQ_CREDIT_BUREAU_QRT <- round(replace(imputed_data$AMT_REQ_CREDIT_BUREAU_QRT,imputed_data$AMT_REQ_CREDIT_BUREAU_QRT > 200, mean(imputed_data$AMT_REQ_CREDIT_BUREAU_QRT)))
+
+table(imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR)
+imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR)
+```
+We combine the AMT_REQ_CREDIT variables into one variable. This is possible since the variables exclude each other. For example, the WEEK variable excludes one day before application.
+```{r}
+imputed_data$enquiries <- imputed_data$AMT_REQ_CREDIT_BUREAU_HOUR + imputed_data$AMT_REQ_CREDIT_BUREAU_DAY + imputed_data$AMT_REQ_CREDIT_BUREAU_WEEK + imputed_data$AMT_REQ_CREDIT_BUREAU_MON + imputed_data$AMT_REQ_CREDIT_BUREAU_QRT + imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR
+
+table(imputed_data$enquiries)
+```
 
 
 
