@@ -210,7 +210,7 @@ names(data_cor)[1] <- "correlation"
 ggcorrplot(data_cor, lab = TRUE)
 
 ```
-Making a new cardinalities for the final dataset:
+Making a new cardinalities for the dataset with final columns:
 ```{r}
 #counting max, min, mean, median of each of the columns
 cardinalities_master <- as.data.table(describe(master_data),keep.rownames=TRUE)
@@ -234,24 +234,91 @@ We start out by checking the binary variables to see if they all have 2 distinct
 ```{r}
 unique(master_data$CODE_GENDER) #view the distinct values
 sum(master_data$CODE_GENDER == "XNA")
-sum(master_data$CODE_GENDER == "M") / nsum(master_data$CODE_GENDER == "M") / n
+sum(master_data$CODE_GENDER == "M") / n
+#counting the number of distinct values of CODE_gender, the number is 4, and the most frequent gender is female.
+
+#We replace XNA with the female as this is the most common gender, 65% female
+master_data$CODE_GENDER <- replace(master_data$CODE_GENDER,master_data$CODE_GENDER == "XNA","M")
 ```
-counting the number of distinct values of CODE_gender, the number is 4, and the most frequent gender is female.
 
 
 #IMPUTATION
 Generalized Imputation: In this case, we calculate the mean or median for all non missing values of that variable then replace missing value with mean or median.
 
-We replace XNA with the female as this is the most common gender, 65% female
-
 Impute missing values in application_data:
 For categorical variables with low null percentage, impute with the most frequent items.
 For categorical variables with high null percentage, create new category as not to influence the analysis.
-AMT_REQ_CREDIT_BUREAU_X, numerical variables which represent number of enquiries made, have low null percentages and no outliers. We will impute with median -- mean() returns decimal values while these columns represent number of enquiries made, which cannot be decimal.
 
 ```{r}
-imputed_data <- mice(master_data, m=5, maxit = 50, method = 'pmm', seed = 500)
+#creating a function that "calculates" the most frequent observation of a categorical value
+imputed_data <- master_data
+calculate_mode <- function(x) {
+  uniqx <- unique(na.omit(x))
+  uniqx[which.max(tabulate(match(x, uniqx)))]
+}
+#testing it for the gender variable:
+calculate_mode(master_data$CODE_GENDER)
+
+#looking at cardinalities_master and finding which categorical values have missing values and imputing the most frequent:
+
+#NAME_TYPE_SUITE
+imputed_data["NAME_TYPE_SUITE"] <- replace(imputed_data["NAME_TYPE_SUITE"],is.na(imputed_data["NAME_TYPE_SUITE"]), calculate_mode(imputed_data$NAME_TYPE_SUITE))
+
+#Occupation type is next, but given a lot of missing values, we create new variable called "Unknown" instead of imputed most frequent
+imputed_data["OCCUPATION_TYPE"] <- replace(imputed_data["OCCUPATION_TYPE"],is.na(imputed_data["OCCUPATION_TYPE"]), "Unknown")
 ```
+
+We now have to go through the numerical values which have missing values:
+```{r}
+for(i in 1:ncol(imputed_data))
+  imputed_data[ , i][is.na(imputed_data[ , i])] <- mean(imputed_data[ , i], na.rm=TRUE)
+```
+Making a new cardinalities for the dataset with no missing values:
+```{r}
+#counting max, min, mean, median of each of the columns
+cardinalities_imputed <- as.data.table(describe(imputed_data),keep.rownames=TRUE)
+
+#Getting the datatype/class of each column
+cardinalities_imputed$class <- sapply(imputed_data,class)
+
+#Now we want to get the numnber of unique values in each of the columns
+cardinalities_imputed$distinct <- sapply(imputed_data, n_distinct)
+```
+
+
+##Outliers
+We look at the categorical values, the number of distinct answers and the frequency:
+
+```{r}
+count(imputed_data, NAME_EDUCATION_TYPE)
+#all variables which start with 'NAME_' look okay, except for education where there is both 'academic' and 'higher education' which might be the same. 
+
+#WEEKDAY_APPR_PROCESS_START okay. 
+count(imputed_data, WEEKDAY_APPR_PROCESS_START)
+
+#WEEKDAY_APPR_PROCESS_START okay. Might make 'business entity into 1 category'
+count(imputed_data,ORGANIZATION_TYPE)
+```
+
+We now look at min and max to see if anything doesn't match our expectations.
+- Income variable: AMT_INCOME_TOTAL
+- 
+
+
+We now look at the income variable:
+```{r}
+ggplot(imputed_data,aes(AMT_INCOME_TOTAL)) + 
+  geom_dots()
+```
+
+Imputing the extreme value above 30.000.000 in income with the mean:
+```{r}
+sum(imputed_data$AMT_INCOME_TOTAL > 30000000)
+imputed_data$AMT_INCOME_TOTAL <- replace(imputed_data$AMT_INCOME_TOTAL,imputed_data$AMT_INCOME_TOTAL > 30000000, mean(imputed_data$AMT_INCOME_TOTAL))
+```
+
+
+
 
 
 
