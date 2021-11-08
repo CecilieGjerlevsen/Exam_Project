@@ -417,9 +417,17 @@ imputed_data$ENQUIRIES <- imputed_data$AMT_REQ_CREDIT_BUREAU_HOUR + imputed_data
 imputed_data <- imputed_data[,!(names(imputed_data) %in% c("AMT_REQ_CREDIT_BUREAU_HOUR","AMT_REQ_CREDIT_BUREAU_DAY","AMT_REQ_CREDIT_BUREAU_WEEK","AMT_REQ_CREDIT_BUREAU_MON","AMT_REQ_CREDIT_BUREAU_QRT","AMT_REQ_CREDIT_BUREAU_YEAR"))]
 ```
 
+Years employed has a maximum of 1000.6657534. We count the number of instances:
+```{r}
+length(which(imputed_data$YEARS_EMPLOYED > 100))
+#There are 55374 instances of this outcome.
 
 
 
+#imputed_data$YEARS_EMPLOYED <- replace(imputed_data$YEARS_EMPLOYED,imputed_data$YEARS_EMPLOYED > 1000, mean(imputed_data$YEARS_EMPLOYED))
+
+#imputed_data$YEARS_EMPLOYED <- replace(imputed_data$YEARS_EMPLOYED,imputed_data$YEARS_EMPLOYED > 100, mean(imputed_data$YEARS_EMPLOYED))
+```
 
 
 
