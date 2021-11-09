@@ -438,7 +438,64 @@ imputed_data <- imputed_data[,!(names(imputed_data) %in% c("EXT_SOURCE_2","EXT_S
 
 
 
+## EXPERIMENT: Principal Coponent Analysis (PCA)
+Data scientists use PCA analysis when they face a large set of correlated variables. This method allows us to summarize these correlated variables into principal components (a smaller number of representative variables). 
 
+Thus before we try to do PCA. Lets first see if we have large set of correlated variables in or data set (imputed_data).
+
+
+```{r}
+str(imputed_data)
+```
+### Test for colinearity ap p=0.05:
+
+```{r}
+# Tis code shows us the correlation matrix in a nice table
+#install.packages("pander")
+library(pander)
+correlation_imputed<-pander(round(cor(imputed_data[,unlist(lapply(imputed_data, is.numeric))]),2))
+correlation_imputed
+
+#Use corr_cross() function to compute all correlations and return the highest and significant ones in a plot
+#install.packages("lares")
+library(lares)
+
+corr_cross(imputed_data[,unlist(lapply(imputed_data, is.numeric))],#dataset (only numerical)
+  max_pvalue = 0.05, # display only significant correlations (at 5% level)
+  top = 10 # display top 10 couples of variables (by correlation coefficient)
+)
+
+# the plot of ranked cross-correlation tells us that there is correlation between variables which will lead to the multidisciplinary problem. Thus it is possible to use PCA to resolve the multicollinearity problem through dimension reduction.
+
+```
+
+
+1. The first objective of the PCA is to evaluate whether variables can be summarized, in order to see a bigger picture in terms of understanding what increases the probability of loan default. The outcome of the the PCA are principal components that contain an information about the interrelationships between variables. PCA will result in a smaller set of concepts to consider in evaluation whether to provide the loan or not. Each principal component will contain specific variables that are a facet of the broader evaluative dimension. 
+  - Assess which variables are most responsible for similarities or differences between the clients
+  - Assess which clients are similar to one another, and which ones are different.
+  
+2. The second objective of the PCA is to reduce the 38 variables, that we have ended up after the data cleaning, to a smaller number of principal components to be used in a supervised analysis.
+
+
+```{r}
+# Here we set up the margins of the text in LAText document; might need to install formatR library
+library(knitr) 
+opts_chunk$set(tidy.opts=list(width.cutoff=80),tidy=TRUE)
+```
+
+### We select relevant variables:
+PCA should only contain relevant continuous variables, and we can apply PCA to only those variables that have the same scale (e.g. all variables are stated in dollars).
+```{r}
+# Next we have to Select variables aimed for PCA. It is important for make sure these variables are all metric.
+imputed_PCA <- imputed_data[,c(3:38)] # here we have removed SK_ID_CURR (ID variable), and TARGET (target, dependent variable)
+imputed_PCA <- imputed_PCA[,unlist(lapply(imputed_PCA, is.numeric))] # Here we have selected only numerical variables, all character variables were removed
+
+# For the PCA we have selected 24 variables
+
+str(imputed_PCA)
+```
+
+We can apply PCA only to the continuous variables that have the same scale (e.g. all variables are stated in dollars). Our dataset does not have enough variables of the same scale. Thus, we cannot use PCA.
 
 
 
