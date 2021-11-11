@@ -469,12 +469,12 @@ p1
 
 We aggregate the variable into Accompanied versus Unaccompanied:
 ```{r}
-master_data$NAME_TYPE_SUITE[master_data$NAME_TYPE_SUITE == "Children"] <- "Accompanied"
-master_data$NAME_TYPE_SUITE[master_data$NAME_TYPE_SUITE == "Family"] <- "Accompanied"
-master_data$NAME_TYPE_SUITE[master_data$NAME_TYPE_SUITE == "Group of people"] <- "Accompanied"
-master_data$NAME_TYPE_SUITE[master_data$NAME_TYPE_SUITE == "Other_A"] <- "Accompanied"
-master_data$NAME_TYPE_SUITE[master_data$NAME_TYPE_SUITE == "Other_B"] <- "Accompanied"
-master_data$NAME_TYPE_SUITE[master_data$NAME_TYPE_SUITE == "Spouse, partner"] <- "Accompanied"
+imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Children"] <- "Accompanied"
+imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Family"] <- "Accompanied"
+imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Group of people"] <- "Accompanied"
+imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Other_A"] <- "Accompanied"
+imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Other_B"] <- "Accompanied"
+imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Spouse, partner"] <- "Accompanied"
 ```
 
 ```{r}
