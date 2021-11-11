@@ -1,0 +1,29 @@
+---
+title: "Exploratory data analysis"
+output: html_document
+---
+
+Loading the dataset:
+```{r, echo=FALSE}
+master_data <- read.csv("master_data.csv")
+```
+
+Loading packages:
+```{r, echo=FALSE}
+pacman::p_load(
+  ggplot2,
+  data.table,
+  dplyr
+  )
+```
+
+Plot of target variable:
+```{r}
+master_data %>% 
+  ggplot(aes(TARGET)) +
+  geom_bar(stat = "")
+```
+æbvfdsåfpdks
+gfdsfds
+
+

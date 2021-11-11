@@ -6,7 +6,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
-Loading the three datasets
+Loading the two datasets
 ```{r, echo=FALSE}
 #Loading the dataset
 application_data <- read.csv("application_data.csv")
@@ -434,6 +434,51 @@ imputed_data <- imputed_data[,!(names(imputed_data) %in% c("YEARS_EMPLOYED"))]
 Due to anonymousness of the variables containing external source data, we also delete these two:
 ```{r}
 imputed_data <- imputed_data[,!(names(imputed_data) %in% c("EXT_SOURCE_2","EXT_SOURCE_3"))]
+```
+
+Rounding the social variables since you cannot have a decimal amount in your social circle (changing from numerical to integer)
+```{r}
+imputed_data$OBS_60_CNT_SOCIAL_CIRCLE <- round(imputed_data$OBS_60_CNT_SOCIAL_CIRCLE)
+imputed_data$DEF_60_CNT_SOCIAL_CIRCLE <- round(imputed_data$DEF_60_CNT_SOCIAL_CIRCLE)
+```
+
+FLAG own car & FLAG own realty are turned into 0, 1 answers:
+```{r}
+imputed_data$FLAG_OWN_CAR[imputed_data$FLAG_OWN_CAR == "Y"] <- 1
+imputed_data$FLAG_OWN_CAR[imputed_data$FLAG_OWN_CAR == "N"] <- 0
+
+imputed_data$FLAG_OWN_REALTY[imputed_data$FLAG_OWN_REALTY == "Y"] <- 1
+imputed_data$FLAG_OWN_REALTY[imputed_data$FLAG_OWN_REALTY == "N"] <- 0
+```
+
+Looking at who accompanied the person:
+```{r}
+p1 <- ggplot(master_data,aes(x = NAME_TYPE_SUITE, fill = factor(TARGET,labels = c("No", "Yes")))) +
+  geom_bar(aes(y = (..count..)/sum(..count..))) +
+  theme_half_open(12) +
+  theme(legend.justification = "top") +
+  xlab("Accompanying party") +
+  ylab("Percentage") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_discrete(name = "Payment difficulties") +
+  theme(legend.key.size = unit(1, 'cm')) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+p1
+```
+
+We aggregate the variable into Accompanied versus Unaccompanied:
+```{r}
+imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Children"] <- "Accompanied"
+imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Family"] <- "Accompanied"
+imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Group of people"] <- "Accompanied"
+imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Other_A"] <- "Accompanied"
+imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Other_B"] <- "Accompanied"
+imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Spouse, partner"] <- "Accompanied"
+```
+
+```{r}
+write.csv(imputed_data,"master_data.csv")
 ```
 
 
