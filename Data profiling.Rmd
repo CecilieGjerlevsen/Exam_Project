@@ -442,6 +442,40 @@ imputed_data$OBS_60_CNT_SOCIAL_CIRCLE <- round(imputed_data$OBS_60_CNT_SOCIAL_CI
 imputed_data$DEF_60_CNT_SOCIAL_CIRCLE <- round(imputed_data$DEF_60_CNT_SOCIAL_CIRCLE)
 ```
 
+FLAG own car & FLAG own realty are turned into 0, 1 answers:
+```{r}
+imputed_data$FLAG_OWN_CAR[imputed_data$FLAG_OWN_CAR == "Y"] <- 1
+imputed_data$FLAG_OWN_CAR[imputed_data$FLAG_OWN_CAR == "N"] <- 0
+
+imputed_data$FLAG_OWN_REALTY[imputed_data$FLAG_OWN_REALTY == "Y"] <- 1
+imputed_data$FLAG_OWN_REALTY[imputed_data$FLAG_OWN_REALTY == "N"] <- 0
+```
+
+Looking at who accompanied the person:
+```{r}
+p1 <- ggplot(master_data,aes(x = NAME_TYPE_SUITE, fill = factor(TARGET,labels = c("No", "Yes")))) +
+  geom_bar(aes(y = (..count..)/sum(..count..))) +
+  theme_half_open(12) +
+  theme(legend.justification = "top") +
+  xlab("Accompanying party") +
+  ylab("Percentage") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_discrete(name = "Payment difficulties") +
+  theme(legend.key.size = unit(1, 'cm')) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+p1
+```
+
+We aggregate the variable into Accompanied versus Unaccompanied:
+```{r}
+master_data$NAME_TYPE_SUITE[master_data$NAME_TYPE_SUITE == "Children"] <- "Accompanied"
+master_data$NAME_TYPE_SUITE[master_data$NAME_TYPE_SUITE == "Family"] <- "Accompanied"
+master_data$NAME_TYPE_SUITE[master_data$NAME_TYPE_SUITE == "Group of people"] <- "Accompanied"
+master_data$NAME_TYPE_SUITE[master_data$NAME_TYPE_SUITE == "Other_A"] <- "Accompanied"
+master_data$NAME_TYPE_SUITE[master_data$NAME_TYPE_SUITE == "Other_B"] <- "Accompanied"
+master_data$NAME_TYPE_SUITE[master_data$NAME_TYPE_SUITE == "Spouse, partner"] <- "Accompanied"
+```
 
 ```{r}
 write.csv(imputed_data,"master_data.csv")
