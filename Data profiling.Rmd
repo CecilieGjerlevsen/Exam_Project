@@ -6,7 +6,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
-Loading the three datasets
+Loading the two datasets
 ```{r, echo=FALSE}
 #Loading the dataset
 application_data <- read.csv("application_data.csv")
@@ -434,6 +434,17 @@ imputed_data <- imputed_data[,!(names(imputed_data) %in% c("YEARS_EMPLOYED"))]
 Due to anonymousness of the variables containing external source data, we also delete these two:
 ```{r}
 imputed_data <- imputed_data[,!(names(imputed_data) %in% c("EXT_SOURCE_2","EXT_SOURCE_3"))]
+```
+
+Rounding the social variables since you cannot have a decimal amount in your social circle (changing from numerical to integer)
+```{r}
+imputed_data$OBS_60_CNT_SOCIAL_CIRCLE <- round(imputed_data$OBS_60_CNT_SOCIAL_CIRCLE)
+imputed_data$DEF_60_CNT_SOCIAL_CIRCLE <- round(imputed_data$DEF_60_CNT_SOCIAL_CIRCLE)
+```
+
+
+```{r}
+write.csv(imputed_data,"master_data.csv")
 ```
 
 
