@@ -515,15 +515,9 @@ master_data$ORGANIZATION_TYPE[master_data$ORGANIZATION_TYPE == "Transport: type 
 master_data$ORGANIZATION_TYPE[master_data$ORGANIZATION_TYPE == "Transport: type 4"] <- "Transport"
 ```
 
-We disgard the variable called REGION_RATING_CLIENT as it is highly correlated with REGION_RATING_CLIENT_W_CITY
-```{r}
-imputed_data <- imputed_data[,!(names(imputed_data) %in% c("REGION_RATING_CLIENT"))]
-```
-
 ```{r}
 write.csv(imputed_data,"master_data.csv")
 ```
-
 
 
 ## EXPERIMENT: Principal Coponent Analysis (PCA)
