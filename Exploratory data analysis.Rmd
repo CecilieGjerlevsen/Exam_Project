@@ -31,11 +31,20 @@ master_data$AMT_ANNUITY <- (master_data$AMT_ANNUITY - mean(master_data$AMT_ANNUI
 master_data$AMT_GOODS_PRICE <- (master_data$AMT_GOODS_PRICE - mean(master_data$AMT_GOODS_PRICE)) / sd(master_data$AMT_GOODS_PRICE)
 ```
 
-
-Plot of target variable:
+Plot of target variable - Imbalance plot:
 ```{r}
-
-
+master_data %>% 
+    count(TARGET,  factor(TARGET)) %>% 
+    mutate(pct = prop.table(n)) %>% 
+    ggplot(aes(x = TARGET, y = pct, fill = factor(TARGET), label = scales::percent(pct))) + 
+    geom_col(position = 'dodge') + 
+    geom_text(position = position_dodge(width = .9), vjust = -0.5, size = 4) + 
+    scale_y_continuous(labels=scales::percent) +
+    scale_x_continuous(breaks=c(0,1)) + 
+    scale_fill_discrete(labels = c("No", "Yes")) + 
+    labs(y = "Percentage", x = "Target variable", fill = "Client has repayment difficulties") +
+    theme_half_open(12)
+  
 ```
 
 #Density plots
@@ -149,6 +158,105 @@ third_row <- plot_grid(plots[[1]], plots[[2]], plots[[3]], NULL,
 
 plot_grid(first_row, second_row, third_row, ncol = 1)
 ```
+
+#Plot of binary variables (nominal scaled)
+
+Make all binary variables alike:
+- CODE_GENDER: F = 1, M = 0
+- NAME_TYPE_SUITE: Accompanied = 1, unaccompanied = 0
+- NAME_CONTRACT_TYPE: cash loans = 1, revolving loans = 0
+- FLAG_OWN_CAR: N = 0, Y = 1
+- FLAG_OWN_REALTY: N = 0, Y = 1
+
+Already 0 and 1 binary variables:
+- FLAG_EMP_PHONE
+- FLAG_PHONE
+- FLAG_EMAIL
+- REG_CITY_NOT_LIVE_CITY 
+- REG_CITY_NOT_WORK_CITY 
+- LIVE_CITY_NOT_WORK_CITY  
+
+```{r}
+#creating placeholder for contemplated frequency table, want to get frequencies/percentages for categorical variables
+binary <- master_data
+
+#replacing the current labelling
+binary["CODE_GENDER"][binary["CODE_GENDER"] == "M"] <- 0
+binary["CODE_GENDER"][binary["CODE_GENDER"] == "F"] <- 1
+binary$CODE_GENDER <- as.integer(binary$CODE_GENDER)
+
+binary["NAME_TYPE_SUITE"][binary["NAME_TYPE_SUITE"] == "Unaccompanied"] <- 0
+binary["NAME_TYPE_SUITE"][binary["NAME_TYPE_SUITE"] == "Accompanied"] <- 1
+binary$NAME_TYPE_SUITE <- as.integer(binary$NAME_TYPE_SUITE)
+
+binary["NAME_CONTRACT_TYPE"][binary["NAME_CONTRACT_TYPE"] == "Cash loans"] <- 0
+binary["NAME_CONTRACT_TYPE"][binary["NAME_CONTRACT_TYPE"] == "Revolving loans"] <- 1
+binary$NAME_CONTRACT_TYPE <- as.integer(binary$NAME_CONTRACT_TYPE)
+
+binary["FLAG_OWN_CAR"][binary["FLAG_OWN_CAR"] == "N"] <- 0
+binary["FLAG_OWN_CAR"][binary["FLAG_OWN_CAR"] == "Y"] <- 1
+binary$FLAG_OWN_CAR <- as.integer(binary$FLAG_OWN_CAR)
+
+binary["FLAG_OWN_REALTY"][binary["FLAG_OWN_REALTY"] == "N"] <- 0
+binary["FLAG_OWN_REALTY"][binary["FLAG_OWN_REALTY"] == "Y"] <- 1
+binary$FLAG_OWN_REALTY<- as.integer(binary$FLAG_OWN_REALTY)
+
+#subsetting a dataset with only binary variables
+binary <- select(binary,TARGET, CODE_GENDER, NAME_CONTRACT_TYPE, NAME_TYPE_SUITE, FLAG_OWN_REALTY,FLAG_OWN_CAR, FLAG_EMP_PHONE, FLAG_PHONE, FLAG_EMAIL, REG_CITY_NOT_LIVE_CITY, REG_CITY_NOT_WORK_CITY, LIVE_CITY_NOT_WORK_CITY)
+
+#subsetting the above dataset based on target variable
+binary_1 <- subset(binary, TARGET == 1)
+binary_0 <- subset(binary, TARGET == 0)
+
+#creating frequency data
+n_1 <- sum(master_data$TARGET)
+n_0 <- dim(master_data)[1] - n_1
+
+freq_table <- as.data.frame(colMeans(binary_0)) %>% 
+  rename(c('target_0_feature_1'='colMeans(binary_0)'))
+freq_table$target_0_feature_0 <- 1 - freq_table[,1]
+freq_table$target_1_feature_1 <- colMeans(binary_1)
+freq_table$target_1_feature_0 <- 1 - freq_table[,3]
+freq_table <- as.data.frame(t(freq_table))
+
+#Replacing cell values in TARGET variable to indicate 4 different outcomes
+freq_table[1, 1] = "Target 0, feature YES"
+freq_table[2, 1] = "Target 0, feature NO"
+freq_table[3, 1] = "Target 1, feature YES"
+freq_table[4, 1] = "Target 1, feature NO"
+
+#reshapeing the data in order to make the plot
+freq_table_long <- freq_table %>%
+  gather("Stat", "Value", -TARGET)
+
+#using only 2 decimals on Value
+freq_table_long$Value <- freq_table_long$Value*100
+freq_table_long$Value <-round(freq_table_long$Value,1)
+freq_table_long$TARGET_SUM <- as.character(freq_table_long$TARGET == "Target 1, feature YES" | freq_table_long$TARGET == "Target 1, feature NO")
+
+#plotting the proportion split for each binary variable and target variable
+freq_table_long <- mutate(freq_table_long, Percent_col = Value / sum(Value)) %>% 
+  group_by(TARGET) %>% 
+  group_by(Stat) %>%
+  group_by(TARGET_SUM) %>%
+  mutate(Percent = (Value / sum(Value))*10)
+
+freq_table_long %>% 
+  ggplot(aes(x = Stat, y = Percent, fill = TARGET)) + 
+  geom_col(position = 'dodge') + 
+  geom_text(aes(label=Value),position = position_dodge(width = 1), vjust = -0.5, size = 3) + 
+  scale_y_continuous(labels=scales::percent, limits = c(0,1)) +
+  scale_x_discrete(labels = c("Gender","Provided e-mail", "Provided work tel.no.","Owns a car","Provided tel.no.",
+                              "Living city not working city", "Cash (1) or revolving loan (0)", "Accompanied when applying",
+                              "Reg city not live city", "Reg city not work city", "Live city not work city")) + 
+  labs(x = "", y = "Percentage", fill = "Binary features",title = "Binary feature variables") +
+  theme_half_open(12) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = -0.5, hjust=1)) 
+
+
+```
+
+
 #Plot of categorical variables (ordinal scaled)
 ## First row
 ```{r}
