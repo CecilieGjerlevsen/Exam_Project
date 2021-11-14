@@ -16,108 +16,48 @@ Loading packages:
 ```{r, echo=FALSE}
 pacman::p_load(
   ggplot2, #for plotting graphics
-  ggmap, #for plotting maps
-  RColorBrewer, #provide pretty colour palettes
-  lubridate, #for converting time variables into date format
-  hrbrthemes, #for more style themes
   data.table, #for working with data.table
   dplyr, #for count function
-  tidytext, #for text mining functions such as unnest()
-  wordcloud,
-  tm, #for removing stopwords
-  ggdist, #for raincloud plots
-  tidyquant, #for theme_tq
-  prismatic, #for color handling in plots
-  gganimate, #for animated plots
-  gifski, #for rendering animated plots as GIFs instead of single frames
   tidyverse,
   skimr,
   psych,
   ggcorrplot,
-  scales,
-  missMDA
+  scales
 )
-
 ```
 
-##Data profiling
-# Cardinalities (single-column analysis)
-```{r}
-#Number of rows and columns
-dim(application_data)
-#str(application_data)
-
-#Inspecting the % of missing values across all columns
-#NA_inspection <- t(as.data.frame(map(application_data, ~mean(is.na(.)))))
-#colnames(NA_inspection) <- "Percentage_missing"
-```
-
-#Data inspection - general summary statistics
-```{r, results='hide'}
-# Data overview
-
+#Data profiling
+## Single-column profiling
+```{r, warning = FALSE}
 #Using options() to ensure that numbers are not displayed in scientific notation
 options(scipen = 999)
 
-#counting max, min, mean, median of each of the columns
+#Number of rows and columns
+dim(application_data)
+
+#Calculating max, min, mean, range, standard deviation and standard error of each of the variables
 cardinalities <- as.data.table(describe(application_data),keep.rownames=TRUE)
 
-#Getting the datatype/class of each column
+#Adding the datatype of each variable
 cardinalities$class <- sapply(application_data,class)
 
-#Now we want to get the numnber of unique values in each of the columns
+#Adding the number of unique values for each variable
 cardinalities$distinct <- sapply(application_data, n_distinct)
 
-#Calculating the number of NA in each column, where we first replace all blanks "" with NA
+#Calculating the number of missing values (NA) for each variable, where we first replace all blanks "" with NA
 application_data[application_data == ""] <- NA
 cardinalities$missing <- colSums(is.na(application_data))
 ```
 
-## Data cleaning
-"Data cleaning involves either finding and removing columns or rows with null values or replacing the null value with any suitable value. This is done to make a reliable analysis.
-Their deletion depends on whether a given column adds value to our analysis or not.
-But at any given point removing columns with more than 30% data seems logical though there is no said rule for it."
-
-#Aggregating information on documents into one new variable, DOCUMENTS_PROVIDED
+Plot of percentage missing values
 ```{r}
-master_data <- application_data
-master_data$DOCUMENTS_PROVIDED <- rowSums(select(master_data,c(97:116)) == "1")
+#Calculating and storing the number of observations
+n <- nrow(application_data) 
 
-#Then, we remove the binary document variables
-master_data <- master_data[,-c(97:116)]
-```
-
-#Changing the variables from days to years
-```{r}
-master_data$AGE <- floor(abs(master_data$DAYS_BIRTH / 365))
-master_data$YEARS_EMPLOYED <- abs(master_data$DAYS_EMPLOYED / 365)
-master_data$YEARS_REGISTRATION <- abs(master_data$DAYS_REGISTRATION / 365)
-master_data$YEARS_PUBLISH <- abs(master_data$DAYS_ID_PUBLISH / 365)
-master_data$YEARS_PHONE_CHANGE <- abs(master_data$DAYS_LAST_PHONE_CHANGE / 365)
-
-#Removing the old variables
-master_data <- master_data[,!(names(master_data) %in% c("DAYS_BIRTH","DAYS_EMPLOYED","DAYS_REGISTRATION","DAYS_ID_PUBLISH","DAYS_LAST_PHONE_CHANGE"))]
-```
-
-#Removing columns with NA values over a limit of 40%
-```{r}
-# Counting the number of variables with more than 40% missing values.
-n <- nrow(master_data) 
-limit <- 0.4 * n #setting a limit for which columns to remove, where the limit is set to be 40%
-
-cardinalities$delete <- cardinalities$missing > limit #creating a column with TRUE and FALSE values depending on whether the column should be deleted or not
-
-sum(cardinalities$delete) #counting the number of columns to be deleted
-
-master_data <- master_data[, which(colMeans(is.na(master_data)) < 0.4)] #Overwriting the dataset where the 49 columns are deleted. 
-```
-
-## Plot of percentage missing values
-```{r}
+#Calculating the percentage missing for each variable
 cardinalities$pct_missing <- cardinalities$missing/n * 100
 
-#options(repr.plot.width = 30, repr.plot.height = 0.75)
-
+#Modifying the independent variable to be a factor
 cardinalities$rn <- factor(cardinalities$rn, levels = cardinalities$rn)
 
 cardinalities %>% 
@@ -129,338 +69,208 @@ cardinalities %>%
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   scale_x_discrete(limits=cardinalities$rn) 
 ```
-
-
-Whether we choose to remove columns with 20 or 48% missing values results in the same number of columns removed (45). When delaing with many missing values, you can choose between different alternatives: Remove the columns, remove the entire row (in this case loan applicant) or insert some sort of proxy (i.e. the mean or median of the column). In this case we consider the best option to be to delete the columns, since we deem this to be the option that will result in the least bias. Furthermore going through the columns to delete, they are not deemed as essential features for our analysis. 
-
-
-#Correlation analysis on the remaining variables is conducted to remove unnecessary columns
-
-Trial and error start for "correct" plot with Gender variable
+Removing columns with NA values over a limit of 40%
 ```{r}
-#We want to plot if the nominal scaled variables have any correlation witht the TARGET variable to remove unnecessary variables. 
-ggplot(master_data, aes(x = TARGET, fill = CODE_GENDER)) + 
-  geom_bar(position = "dodge") + 
-  labs(y = "Count", x = "Target variable", fill = "Gender") + 
-  scale_x_continuous(breaks=c(0,1)) + 
-  scale_fill_discrete(labels = c("Female", "Male", "Unknown"))
-```
-Found the correct way to plot and will now go through all possible feature variables which are categorical or binary:
+#Defining a new dataset for data cleansing
+clean_data <- application_data
 
-Starting with the variables: Did the client provide XX? Column 22 to 27 in Master file.
-- Did client provide mobile phone (1=YES, 0=NO) = TO DROP
-- Did client provide work phone (1=YES, 0=NO) = TO KEEP
-- Did client provide home phone (1=YES, 0=NO) = TO DROP (two variables which indicate home phone, we remove this one because there is a discrepancy between name of variable and description of variable and multicollinarity)
-- Was mobile phone reachable (1=YES, 0=NO) = TO DROP
-- Did client provide home phone (1=YES, 0=NO) = TO KEEP
-- Did client provide email (1=YES, 0=NO) = TO KEEP
+# Counting the number of variables with more than 40% missing values.
+limit <- 0.4 * n #setting a limit for which columns to remove, where the limit is set to be 40%
+
+#Creating a column with TRUE and FALSE values depending on whether the column should be deleted or not
+cardinalities$delete <- cardinalities$missing > limit 
+
+#Deleting the 49 variables with more than 40% missing values 
+clean_data <- clean_data[, which(colMeans(is.na(clean_data)) < 0.4)] 
+```
+
+The variables called FLAG_Document_# (from 2-21) all have different means indicating that there is a difference in how many documents each applicant have handed in. However, we do not have any information about the content of each document. To use the information in these variables in more manageable way, we aggregate them to one new variables, which counts the number of documents each applicant has submitted.
+```{r}
+clean_data$DOCUMENTS_PROVIDED <- clean_data$FLAG_DOCUMENT_2 + clean_data$FLAG_DOCUMENT_3 + clean_data$FLAG_DOCUMENT_4 + clean_data$FLAG_DOCUMENT_5 + clean_data$FLAG_DOCUMENT_6 + clean_data$FLAG_DOCUMENT_7 + clean_data$FLAG_DOCUMENT_8 + clean_data$FLAG_DOCUMENT_9 + clean_data$FLAG_DOCUMENT_10 + clean_data$FLAG_DOCUMENT_11 + clean_data$FLAG_DOCUMENT_12 + clean_data$FLAG_DOCUMENT_13 + clean_data$FLAG_DOCUMENT_14 + clean_data$FLAG_DOCUMENT_15 + clean_data$FLAG_DOCUMENT_16 + clean_data$FLAG_DOCUMENT_17 + clean_data$FLAG_DOCUMENT_18 + clean_data$FLAG_DOCUMENT_19 + clean_data$FLAG_DOCUMENT_20 + clean_data$FLAG_DOCUMENT_21
+
+#Then, we remove the individual document variables
+clean_data <- clean_data[,!(names(clean_data) %in% c("FLAG_DOCUMENT_2","FLAG_DOCUMENT_3","FLAG_DOCUMENT_4","FLAG_DOCUMENT_5","FLAG_DOCUMENT_6","FLAG_DOCUMENT_7","FLAG_DOCUMENT_8","FLAG_DOCUMENT_9","FLAG_DOCUMENT_10","FLAG_DOCUMENT_11","FLAG_DOCUMENT_12","FLAG_DOCUMENT_13","FLAG_DOCUMENT_14","FLAG_DOCUMENT_15","FLAG_DOCUMENT_16","FLAG_DOCUMENT_17","FLAG_DOCUMENT_18","FLAG_DOCUMENT_19","FLAG_DOCUMENT_20","FLAG_DOCUMENT_21"))]
+```
+
+We combine the AMT_REQ_CREDIT (number of enquiries to credit bureau about the client) variables into one variable, ENQUIRIES. This is possible since the variables exclude each other. For example, the WEEK variable excludes one day before application.
+```{r}
+clean_data$ENQUIRIES <- clean_data$AMT_REQ_CREDIT_BUREAU_HOUR + clean_data$AMT_REQ_CREDIT_BUREAU_DAY + clean_data$AMT_REQ_CREDIT_BUREAU_WEEK + clean_data$AMT_REQ_CREDIT_BUREAU_MON + clean_data$AMT_REQ_CREDIT_BUREAU_QRT + clean_data$AMT_REQ_CREDIT_BUREAU_YEAR
+
+#Then, we remove the individual document variables
+clean_data <- clean_data[,!(names(clean_data) %in% c("AMT_REQ_CREDIT_BUREAU_HOUR","AMT_REQ_CREDIT_BUREAU_DAY","AMT_REQ_CREDIT_BUREAU_WEEK","AMT_REQ_CREDIT_BUREAU_MON","AMT_REQ_CREDIT_BUREAU_QRT","AMT_REQ_CREDIT_BUREAU_YEAR"))]
+```
+
+Changing the variables from days to years to make them interpretable
+```{r}
+clean_data$AGE <- floor(abs(clean_data$DAYS_BIRTH / 365))
+clean_data$YEARS_EMPLOYED <- abs(clean_data$DAYS_EMPLOYED / 365)
+clean_data$YEARS_REGISTRATION <- abs(clean_data$DAYS_REGISTRATION / 365)
+clean_data$YEARS_PUBLISH <- abs(clean_data$DAYS_ID_PUBLISH / 365)
+clean_data$YEARS_PHONE_CHANGE <- abs(clean_data$DAYS_LAST_PHONE_CHANGE / 365)
+
+#Removing the old variables
+clean_data <- clean_data[,!(names(clean_data) %in% c("DAYS_BIRTH","DAYS_EMPLOYED","DAYS_REGISTRATION","DAYS_ID_PUBLISH","DAYS_LAST_PHONE_CHANGE"))]
+```
+
+## Multi-column profiling
+The scope of this multi-column profiling is to remove unnecessary columns. 
+
+We start by going through all possible feature variables which are categorical or binary. We focus on the variables where we suspect overlaps.
+
+Starting with the variables: Did the client provide XX? 
 
 ```{r}
 for(i in 1:6) 
- print(ggplot(master_data, aes(x = TARGET, fill = factor(master_data[,c(17+i)]))) +
+ print(ggplot(clean_data, aes(x = TARGET, fill = factor(clean_data[,c(17+i)]))) +
  geom_bar(position = "dodge") +
  labs(y = "Count", x = "Target variable", fill = "Did client provide XX?") + 
  scale_x_continuous(breaks=c(0,1)) + 
  scale_fill_discrete(labels = c("No", "Yes")))
 ```
 
-NOW WE REMOVE THE VARIABLES "FLAG_MOBIL" "FLAG_WORK_PHONE" and "FLAG_CONT_MOBILE"
+We remove the variables "FLAG_MOBIL" "FLAG_WORK_PHONE" and "FLAG_CONT_MOBILE":
+- Did client provide mobile phone (1=YES, 0=NO) = TO DROP (there is nobody who has answered no)
+- Did client provide work phone (1=YES, 0=NO) = TO KEEP
+- Did client provide home phone (1=YES, 0=NO) = TO DROP (two variables which indicate home phone, we remove this one because there is a discrepancy between name of variable and description of variable)
+- Was mobile phone reachable (1=YES, 0=NO) = TO DROP (there is approximately zero who has answered no)
+- Did client provide home phone (1=YES, 0=NO) = TO KEEP
+- Did client provide email (1=YES, 0=NO) = TO KEEP
 ```{r}
-master_data <- master_data[,!(names(master_data) %in% c("FLAG_MOBIL", "FLAG_WORK_PHONE", "FLAG_CONT_MOBILE"))]
+clean_data <- clean_data[,!(names(clean_data) %in% c("FLAG_MOBIL", "FLAG_WORK_PHONE", "FLAG_CONT_MOBILE"))]
 ```
 
-Now we check the variables FLAG_OWN_CAR and FLAG_OWN_REALTY, TO KEEP BOTH
+We check the variables regarding if different addresses provided match.
 ```{r}
-for(i in 1:2) 
- print(ggplot(master_data, aes(x = TARGET, fill = factor(master_data[,c(4+i)]))) +
- geom_bar(position = "dodge") +
- labs(y = "Count", x = "Target variable", fill = "Do client own XX?") + 
- scale_x_continuous(breaks=c(0,1)) + 
- scale_fill_discrete(labels = c("No", "Yes")))
-```
-
-
-We check the variables regarding if addresses match some other info:
-```{r}
-for(i in 1:6) 
- print(ggplot(master_data, aes(x = TARGET, fill = factor(master_data[,c(26+i)]))) +
- geom_bar(position = "dodge") +
- labs(y = "Count", x = "Target variable", fill = "Does XX match YY?") +
- scale_x_continuous(breaks=c(0,1)) + 
- scale_fill_discrete(labels = c("Same","Different")))
-```
-
-```{r}
-model.matrix(~0+., master_data[,c("REG_REGION_NOT_LIVE_REGION","REG_REGION_NOT_WORK_REGION","LIVE_REGION_NOT_WORK_REGION","REG_CITY_NOT_LIVE_CITY","REG_CITY_NOT_WORK_CITY","LIVE_CITY_NOT_WORK_CITY","TARGET")]) %>% 
+model.matrix(~0+., clean_data[,c("REG_REGION_NOT_LIVE_REGION","REG_REGION_NOT_WORK_REGION","LIVE_REGION_NOT_WORK_REGION","REG_CITY_NOT_LIVE_CITY","REG_CITY_NOT_WORK_CITY","LIVE_CITY_NOT_WORK_CITY","TARGET")]) %>% 
   cor(use="pairwise.complete.obs") %>% 
   ggcorrplot(show.diag = F, type="lower", lab=TRUE, lab_size=2)
 ```
-
 We remove the 3 variables which are related to region, since if it matches at the city level it is expected to also match at region level.
 ```{r}
-master_data <- master_data[,!(names(master_data) %in% c("REG_REGION_NOT_LIVE_REGION","REG_REGION_NOT_WORK_REGION","LIVE_REGION_NOT_WORK_REGION"))]
+clean_data <- clean_data[,!(names(clean_data) %in% c("REG_REGION_NOT_LIVE_REGION","REG_REGION_NOT_WORK_REGION","LIVE_REGION_NOT_WORK_REGION"))]
 ```
 
 Furthermore, we notice the variables about social surroundings, which we expect to have high correlations:
 ```{r}
-model.matrix(~0+., master_data[,c("OBS_30_CNT_SOCIAL_CIRCLE","DEF_30_CNT_SOCIAL_CIRCLE","OBS_60_CNT_SOCIAL_CIRCLE","DEF_60_CNT_SOCIAL_CIRCLE","TARGET")]) %>% 
+model.matrix(~0+., clean_data[,c("OBS_30_CNT_SOCIAL_CIRCLE","DEF_30_CNT_SOCIAL_CIRCLE","OBS_60_CNT_SOCIAL_CIRCLE","DEF_60_CNT_SOCIAL_CIRCLE","TARGET")]) %>% 
   cor(use="pairwise.complete.obs") %>% 
   ggcorrplot(show.diag = F, type="lower", lab=TRUE, lab_size=2)
 ```
 We remove the 30-day variables since the 60 day variables all else equal must contain more information:
 ```{r}
-master_data <- master_data[,!(names(master_data) %in% c("OBS_30_CNT_SOCIAL_CIRCLE","DEF_30_CNT_SOCIAL_CIRCLE"))]
+clean_data <- clean_data[,!(names(clean_data) %in% c("OBS_30_CNT_SOCIAL_CIRCLE","DEF_30_CNT_SOCIAL_CIRCLE"))]
 ```
 
-Making a new cardinalities for the dataset with final columns:
+Due to missing descriptions/anonymousness of the variables containing external source data, we delete these two.
 ```{r}
-#counting max, min, mean, median of each of the columns
-cardinalities_master <- as.data.table(describe(master_data),keep.rownames=TRUE)
-
-#Getting the datatype/class of each column
-cardinalities_master$class <- sapply(master_data,class)
-
-#Now we want to get the numnber of unique values in each of the columns
-cardinalities_master$distinct <- sapply(master_data, n_distinct)
+clean_data <- clean_data[,!(names(clean_data) %in% c("EXT_SOURCE_2","EXT_SOURCE_3"))]
 ```
 
-We now inspect the 'Cardinalities' datatable to see if any irregularities pop up. We notice:
-CODE_gender (3 distinct), CNT_children (max of 19), AMT_INCOME_TOAL and AMT_credit (only 2548 and 5603 distinct values)
-
-when inspecting the columns which are denominated in a currency, we thought the values were higher than expected, since we thought it was in american $, however we are now under the impression that it is in Indian rupees. 
-
-The variables called FLAG_Document_# (from 2-21) all have different means indicating that there is a difference in how many documents each applicant have handed in. However, we do not have any information about the content of each document. To use the information in these variables in more manageable way, we aggregate them to one new variables, which counts the number of documents each applicant has submitted.
-
-We start out by checking the binary variables to see if they all have 2 distinct values. We observe that 'CODE_Gender' has 3 distinct values, where one of them is 'XNA'. We check how many of the observations have this value. 
-
-```{r}
-unique(master_data$CODE_GENDER) #view the distinct values
-sum(master_data$CODE_GENDER == "XNA")
-sum(master_data$CODE_GENDER == "M") / n
-#counting the number of distinct values of CODE_gender, the number is 4, and the most frequent gender is female.
-
-#We replace XNA with the female as this is the most common gender, 65% female
-master_data$CODE_GENDER <- replace(master_data$CODE_GENDER,master_data$CODE_GENDER == "XNA","M")
+#Outlier analysis
+Making a new summary statistics datatable with the remaining variables.
+```{r, warning = FALSE}
+cardinalities_clean <- as.data.table(describe(clean_data),keep.rownames=TRUE)
+cardinalities_clean$class <- sapply(clean_data,class)
+cardinalities_clean$distinct <- sapply(clean_data, n_distinct)
+cardinalities_clean$missing <- colSums(is.na(clean_data))
 ```
 
-
-#IMPUTATION
-Generalized Imputation: In this case, we calculate the mean or median for all non missing values of that variable then replace missing value with mean or median.
-
-Impute missing values in application_data:
-For categorical variables with low null percentage, impute with the most frequent items.
-For categorical variables with high null percentage, create new category as not to influence the analysis.
-
+We look at the categorical values, the number of distinct answers and the frequency. If there are few outliers, the most frequent answer is imputed. However, if a large share of the dataset is unknown, a new category called "Unknown" is created for these observations. Nothing is done to the variables where there seems to be no irregularities.
 ```{r}
-#creating a function that "calculates" the most frequent observation of a categorical value
-imputed_data <- master_data
-calculate_mode <- function(x) {
-  uniqx <- unique(na.omit(x))
-  uniqx[which.max(tabulate(match(x, uniqx)))]
-}
-#testing it for the gender variable:
-calculate_mode(master_data$CODE_GENDER)
+#Gender
+count(clean_data, CODE_GENDER) #We observe that 'CODE_Gender' has 3 distinct values, where one of them is 'XNA' 
+clean_data$CODE_GENDER <- replace(clean_data$CODE_GENDER,clean_data$CODE_GENDER == "XNA","F") #We replace XNA with female
 
-#looking at cardinalities_master and finding which categorical values have missing values and imputing the most frequent:
-
-#NAME_TYPE_SUITE
-imputed_data["NAME_TYPE_SUITE"] <- replace(imputed_data["NAME_TYPE_SUITE"],is.na(imputed_data["NAME_TYPE_SUITE"]), calculate_mode(imputed_data$NAME_TYPE_SUITE))
-
-#Occupation type is next, but given a lot of missing values, we create new variable called "Unknown" instead of imputed most frequent
-imputed_data["OCCUPATION_TYPE"] <- replace(imputed_data["OCCUPATION_TYPE"],is.na(imputed_data["OCCUPATION_TYPE"]), "Unknown")
+#Organisation type
+count(clean_data, ORGANIZATION_TYPE)
+clean_data$ORGANIZATION_TYPE <- replace(clean_data$ORGANIZATION_TYPE,clean_data$ORGANIZATION_TYPE == "XNA","Unknown") #We replace XNA with unknown
 ```
 
-We now have to go through the interger and numerical values which have missing values:
+We look at the all numerical variables to spot irregularities and correct for them when detected. 
 ```{r}
-#Starting with all integer variables and imputing the median
-imputed_data[,c("AMT_REQ_CREDIT_BUREAU_HOUR")][is.na(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_HOUR")])] <- median(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_HOUR")], na.rm = TRUE)
-
-imputed_data[,c("AMT_REQ_CREDIT_BUREAU_DAY")][is.na(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_DAY")])] <- median(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_DAY")], na.rm = TRUE)
-
-imputed_data[,c("AMT_REQ_CREDIT_BUREAU_WEEK")][is.na(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_WEEK")])] <- median(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_WEEK")], na.rm = TRUE)
-
-imputed_data[,c("AMT_REQ_CREDIT_BUREAU_MON")][is.na(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_MON")])] <- median(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_MON")], na.rm = TRUE)
-
-imputed_data[,c("AMT_REQ_CREDIT_BUREAU_QRT")][is.na(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_QRT")])] <- median(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_QRT")], na.rm = TRUE)
-
-imputed_data[,c("CNT_FAM_MEMBERS")][is.na(imputed_data[,c("CNT_FAM_MEMBERS")])] <- median(imputed_data[,c("CNT_FAM_MEMBERS")], na.rm = TRUE)
-
-imputed_data[,c("DEF_60_CNT_SOCIAL_CIRCLE")][is.na(imputed_data[,c("DEF_60_CNT_SOCIAL_CIRCLE")])] <- median(imputed_data[,c("DEF_60_CNT_SOCIAL_CIRCLE")], na.rm = TRUE)
-
-imputed_data[,c("OBS_60_CNT_SOCIAL_CIRCLE")][is.na(imputed_data[,c("OBS_60_CNT_SOCIAL_CIRCLE")])] <- median(imputed_data[,c("OBS_60_CNT_SOCIAL_CIRCLE")], na.rm = TRUE)
-
-#Now imputing the remaning numerical variables with the mean of the variable
-for(i in 1:ncol(imputed_data))
-  imputed_data[ , i][is.na(imputed_data[ , i])] <- mean(imputed_data[ , i], na.rm=TRUE)
-```
-
-Making a new cardinalities for the dataset with no missing values:
-```{r}
-#counting max, min, mean, median of each of the columns
-cardinalities_imputed <- as.data.table(describe(imputed_data),keep.rownames=TRUE)
-
-#Getting the datatype/class of each column
-cardinalities_imputed$class <- sapply(imputed_data,class)
-
-#Now we want to get the numnber of unique values in each of the columns
-cardinalities_imputed$distinct <- sapply(imputed_data, n_distinct)
-```
-
-
-##Outliers
-We look at the categorical values, the number of distinct answers and the frequency:
-
-```{r}
-count(imputed_data, NAME_EDUCATION_TYPE)
-#all variables which start with 'NAME_' look okay, except for education where there is both 'academic' and 'higher education' which might be the same. 
-
-#WEEKDAY_APPR_PROCESS_START okay. 
-count(imputed_data, WEEKDAY_APPR_PROCESS_START)
-
-#WEEKDAY_APPR_PROCESS_START okay. Might make 'business entity into 1 category'
-count(imputed_data,ORGANIZATION_TYPE)
-```
-
-We now look at min and max to see if anything doesn't match our expectations.
-- Income variable: AMT_INCOME_TOTAL
-- Number of children: CNT_CHILDREN
-
-
-We now look at the income variable:
-```{r}
-ggplot(imputed_data,aes(AMT_INCOME_TOTAL)) + 
+#Total income
+ggplot(clean_data,aes(AMT_INCOME_TOTAL)) + 
   geom_dots()
-```
 
-Imputing the extreme value above 30.000.000 in income with the mean:
-```{r}
-sum(imputed_data$AMT_INCOME_TOTAL > 30000000)
-imputed_data$AMT_INCOME_TOTAL <- replace(imputed_data$AMT_INCOME_TOTAL,imputed_data$AMT_INCOME_TOTAL > 30000000, mean(imputed_data$AMT_INCOME_TOTAL))
-```
+clean_data$AMT_INCOME_TOTAL <- replace(clean_data$AMT_INCOME_TOTAL,clean_data$AMT_INCOME_TOTAL > 100000000, 
+                                       mean(clean_data$AMT_INCOME_TOTAL)) ##Imputing the extreme value above 100.000.000 in income with the mean
 
-We now look at the children variable:
-```{r}
-imputed_data %>% 
+#Number of children
+clean_data %>% 
   ggplot(aes(CNT_CHILDREN)) +
-  geom_bar()
-```
-Since there are no observations between 14 and 19 children, the two with 19 children could be outliers. 
+  geom_bar() 
 
-We therefore compare the variable to the number of family members (CNT_FAM_MEMBERS)
-```{r}
-imputed_data %>% 
+##Since there are no observations between 14 and 19 children, the two with 19 children could be outliers.We therefore compare the variable to the number of family members (CNT_FAM_MEMBERS)
+clean_data %>% 
   ggplot(aes(CNT_FAM_MEMBERS)) +
   geom_bar()
 
-table(imputed_data$CNT_FAM_MEMBERS)
+sum(clean_data$CNT_CHILDREN > clean_data$CNT_FAM_MEMBERS) #Comparing the CNT_FAM_MEMBERS and CNT_CHILDREN variables, we can see that all CNT_CHILDREN variables are smaller than CNT_FAM_MEMBERS. This indicates that the high numbers of children is not outliers.
 
-sum(imputed_data$CNT_CHILDREN > imputed_data$CNT_FAM_MEMBERS)
+#OBS_60_CNT_SOCIAL_CIRCLE
+##The variable OBS_60_CNT_SOCIAL_CIRCLE has a high maximum. We inspect the variable further.
+table(clean_data$OBS_60_CNT_SOCIAL_CIRCLE)
 
-#imputed_data[with(imputed_data, order(-CNT_CHILDREN)),]
-```
-Comparing the CNT_FAM_MEMBERS and CNT_CHILDREN variables, we can see that all CNT_CHILDREN variables are smaller than CNT_FAM_MEMBERS.
+clean_data$OBS_60_CNT_SOCIAL_CIRCLE <- replace(clean_data$OBS_60_CNT_SOCIAL_CIRCLE,clean_data$OBS_60_CNT_SOCIAL_CIRCLE > 300, round(mean(clean_data$OBS_60_CNT_SOCIAL_CIRCLE))) #The high observation of 344 looks like an outlier, so it is imputed by the rounded mean
 
-We round the variables in CNT_FAM_MEMBERS, because there are two observations that are not integers. 
-```{r}
-imputed_data$CNT_FAM_MEMBERS <- round(imputed_data$CNT_FAM_MEMBERS)
-```
+#Years employed
+##Years employed has a maximum of 1000.6657534
+length(which(clean_data$YEARS_EMPLOYED > 1000)) #There are 55374 instances of this outcome
 
-We now look at the credit variable:
-```{r}
-ggplot(imputed_data,aes(AMT_CREDIT)) + 
-  geom_dots()
-```
-We now look at the ANNUITY variable:
-```{r}
-ggplot(imputed_data,aes(AMT_ANNUITY)) + 
-  geom_dots()
-```
-
-We now look at the GOODS_PRICE variable:
-```{r}
-ggplot(imputed_data,aes(AMT_GOODS_PRICE)) + 
-  geom_dots()
-```
-The variable OBS_60_CNT_SOCIAL_CIRCLE has a high maximum. We inspect the variable further:
-```{r}
-ggplot(imputed_data,aes(OBS_60_CNT_SOCIAL_CIRCLE)) + 
-  geom_dots()
-
-table(imputed_data$OBS_60_CNT_SOCIAL_CIRCLE)
-```
-
-The high observation looks like an outlier, so it is imputed by the mean:
-```{r}
-imputed_data$OBS_60_CNT_SOCIAL_CIRCLE <- replace(imputed_data$OBS_60_CNT_SOCIAL_CIRCLE,imputed_data$OBS_60_CNT_SOCIAL_CIRCLE > 300, mean(imputed_data$OBS_60_CNT_SOCIAL_CIRCLE))
-```
-We inspect the AMT_REQ_CREDIT variables and rounding indistinct variables:
-```{r}
-table(imputed_data$AMT_REQ_CREDIT_BUREAU_HOUR)
-imputed_data$AMT_REQ_CREDIT_BUREAU_HOUR <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_HOUR)
-
-table(imputed_data$AMT_REQ_CREDIT_BUREAU_DAY)
-imputed_data$AMT_REQ_CREDIT_BUREAU_DAY <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_DAY)
-
-table(imputed_data$AMT_REQ_CREDIT_BUREAU_WEEK)
-imputed_data$AMT_REQ_CREDIT_BUREAU_WEEK <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_WEEK)
-
-table(imputed_data$AMT_REQ_CREDIT_BUREAU_MON)
-imputed_data$AMT_REQ_CREDIT_BUREAU_MON <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_MON)
-
-table(imputed_data$AMT_REQ_CREDIT_BUREAU_QRT)
-imputed_data$AMT_REQ_CREDIT_BUREAU_QRT <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_QRT)
-
-#The large observation 0f 261 enquiries for QRT are imputed with the rounded mean of thevariable
-imputed_data$AMT_REQ_CREDIT_BUREAU_QRT <- round(replace(imputed_data$AMT_REQ_CREDIT_BUREAU_QRT,imputed_data$AMT_REQ_CREDIT_BUREAU_QRT > 200, mean(imputed_data$AMT_REQ_CREDIT_BUREAU_QRT)))
-
-table(imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR)
-imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR <- round(imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR)
-```
-
-We combine the AMT_REQ_CREDIT variables into one variable. This is possible since the variables exclude each other. For example, the WEEK variable excludes one day before application.
-```{r}
-imputed_data$ENQUIRIES <- imputed_data$AMT_REQ_CREDIT_BUREAU_HOUR + imputed_data$AMT_REQ_CREDIT_BUREAU_DAY + imputed_data$AMT_REQ_CREDIT_BUREAU_WEEK + imputed_data$AMT_REQ_CREDIT_BUREAU_MON + imputed_data$AMT_REQ_CREDIT_BUREAU_QRT + imputed_data$AMT_REQ_CREDIT_BUREAU_YEAR
-
-imputed_data <- imputed_data[,!(names(imputed_data) %in% c("AMT_REQ_CREDIT_BUREAU_HOUR","AMT_REQ_CREDIT_BUREAU_DAY","AMT_REQ_CREDIT_BUREAU_WEEK","AMT_REQ_CREDIT_BUREAU_MON","AMT_REQ_CREDIT_BUREAU_QRT","AMT_REQ_CREDIT_BUREAU_YEAR"))]
-```
-
-Years employed has a maximum of 1000.6657534. We count the number of instances:
-```{r}
-length(which(imputed_data$YEARS_EMPLOYED > 1000))
-#There are 55374 instances of this outcome.
-
-imputed_data %>% 
+clean_data %>% 
   ggplot(aes(YEARS_EMPLOYED,AGE)) +
-  geom_point()
-```
-We delete the variable:
-```{r}
-imputed_data <- imputed_data[,!(names(imputed_data) %in% c("YEARS_EMPLOYED"))]
+  geom_point() #The distribution suggests the number is a data entry error and is therefore treated as missing values. 
+clean_data <- clean_data[,!(names(clean_data) %in% c("YEARS_EMPLOYED"))] #We delete the variable since imputation would be expected to skew the results
 ```
 
-Due to anonymousness of the variables containing external source data, we also delete these two:
+#Imputation
+Impute missing values in clean_data.
+
+We start with imputing the categorical variables as follows:
+- For categorical variables with low null percentage, impute with the most frequent items.
+- For categorical variables with high null percentage, create new category as not to influence the analysis.
 ```{r}
-imputed_data <- imputed_data[,!(names(imputed_data) %in% c("EXT_SOURCE_2","EXT_SOURCE_3"))]
+#Creating a function that "calculates" the most frequent observation of a categorical value
+calculate_mode <- function(x) {
+  uniqx <- unique(na.omit(x))
+  uniqx[which.max(tabulate(match(x, uniqx)))]}
+
+#NAME_TYPE_SUITE
+clean_data["NAME_TYPE_SUITE"] <- replace(clean_data["NAME_TYPE_SUITE"],is.na(clean_data["NAME_TYPE_SUITE"]), calculate_mode(clean_data$NAME_TYPE_SUITE))
+
+#Occupation type
+clean_data["OCCUPATION_TYPE"] <- replace(clean_data["OCCUPATION_TYPE"],is.na(clean_data["OCCUPATION_TYPE"]), "Unknown")
 ```
 
-Rounding the social variables since you cannot have a decimal amount in your social circle (changing from numerical to integer)
+We impute the integer and numerical variables.
 ```{r}
-imputed_data$OBS_60_CNT_SOCIAL_CIRCLE <- round(imputed_data$OBS_60_CNT_SOCIAL_CIRCLE)
-imputed_data$DEF_60_CNT_SOCIAL_CIRCLE <- round(imputed_data$DEF_60_CNT_SOCIAL_CIRCLE)
+#Starting with all integer variables and imputing the median
+clean_data[,c("CNT_FAM_MEMBERS")][is.na(clean_data[,c("CNT_FAM_MEMBERS")])] <- median(clean_data[,c("CNT_FAM_MEMBERS")], na.rm = TRUE)
+
+clean_data[,c("DEF_60_CNT_SOCIAL_CIRCLE")][is.na(clean_data[,c("DEF_60_CNT_SOCIAL_CIRCLE")])] <- median(clean_data[,c("DEF_60_CNT_SOCIAL_CIRCLE")], na.rm = TRUE)
+
+clean_data[,c("OBS_60_CNT_SOCIAL_CIRCLE")][is.na(clean_data[,c("OBS_60_CNT_SOCIAL_CIRCLE")])] <- median(clean_data[,c("OBS_60_CNT_SOCIAL_CIRCLE")], na.rm = TRUE)
+
+clean_data[,c("ENQUIRIES")][is.na(clean_data[,c("ENQUIRIES")])] <- median(clean_data[,c("ENQUIRIES")], na.rm = TRUE)
+
+#Imputing the remaning numerical variables with the mean of the variable
+for(i in 1:ncol(clean_data))
+  clean_data[ , i][is.na(clean_data[ , i])] <- mean(clean_data[ , i], na.rm=TRUE)
 ```
 
+# Data preparation
 FLAG own car & FLAG own realty are turned into 0, 1 answers:
 ```{r}
-imputed_data$FLAG_OWN_CAR[imputed_data$FLAG_OWN_CAR == "Y"] <- 1
-imputed_data$FLAG_OWN_CAR[imputed_data$FLAG_OWN_CAR == "N"] <- 0
+clean_data$FLAG_OWN_CAR[clean_data$FLAG_OWN_CAR == "Y"] <- 1
+clean_data$FLAG_OWN_CAR[clean_data$FLAG_OWN_CAR == "N"] <- 0
 
-imputed_data$FLAG_OWN_REALTY[imputed_data$FLAG_OWN_REALTY == "Y"] <- 1
-imputed_data$FLAG_OWN_REALTY[imputed_data$FLAG_OWN_REALTY == "N"] <- 0
+clean_data$FLAG_OWN_REALTY[clean_data$FLAG_OWN_REALTY == "Y"] <- 1
+clean_data$FLAG_OWN_REALTY[clean_data$FLAG_OWN_REALTY == "N"] <- 0
 ```
 
-Looking at who accompanied the person:
+Looking at who accompanied the client applying for the loan:
 ```{r}
-p1 <- ggplot(master_data,aes(x = NAME_TYPE_SUITE, fill = factor(TARGET,labels = c("No", "Yes")))) +
+ggplot(clean_data,aes(x = NAME_TYPE_SUITE, fill = factor(TARGET,labels = c("No", "Yes")))) +
   geom_bar(aes(y = (..count..)/sum(..count..))) +
   theme_half_open(12) +
   theme(legend.justification = "top") +
@@ -470,71 +280,69 @@ p1 <- ggplot(master_data,aes(x = NAME_TYPE_SUITE, fill = factor(TARGET,labels = 
   scale_fill_discrete(name = "Payment difficulties") +
   theme(legend.key.size = unit(1, 'cm')) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-
-p1
 ```
-
-We aggregate the variable into Accompanied versus Unaccompanied:
+We aggregate "NAME_TYPE_SUITE" into Accompanied versus Unaccompanied:
 ```{r}
-imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Children"] <- "Accompanied"
-imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Family"] <- "Accompanied"
-imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Group of people"] <- "Accompanied"
-imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Other_A"] <- "Accompanied"
-imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Other_B"] <- "Accompanied"
-imputed_data$NAME_TYPE_SUITE[imputed_data$NAME_TYPE_SUITE == "Spouse, partner"] <- "Accompanied"
+clean_data$NAME_TYPE_SUITE[clean_data$NAME_TYPE_SUITE == "Children"] <- "Accompanied"
+clean_data$NAME_TYPE_SUITE[clean_data$NAME_TYPE_SUITE == "Family"] <- "Accompanied"
+clean_data$NAME_TYPE_SUITE[clean_data$NAME_TYPE_SUITE == "Group of people"] <- "Accompanied"
+clean_data$NAME_TYPE_SUITE[clean_data$NAME_TYPE_SUITE == "Other_A"] <- "Accompanied"
+clean_data$NAME_TYPE_SUITE[clean_data$NAME_TYPE_SUITE == "Other_B"] <- "Accompanied"
+clean_data$NAME_TYPE_SUITE[clean_data$NAME_TYPE_SUITE == "Spouse, partner"] <- "Accompanied"
 ```
 
-Collecting variables within organization type:
+Collecting variables within organisation type:
 ```{r}
 #Business entities
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Business Entity Type 1"] <- "Business Entity"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Business Entity Type 2"] <- "Business Entity"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Business Entity Type 3"] <- "Business Entity"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Business Entity Type 1"] <- "Business Entity"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Business Entity Type 2"] <- "Business Entity"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Business Entity Type 3"] <- "Business Entity"
 
 #Industry
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 1"] <- "Industry"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 2"] <- "Industry"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 3"] <- "Industry"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 4"] <- "Industry"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 5"] <- "Industry"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 6"] <- "Industry"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 7"] <- "Industry"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 8"] <- "Industry"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 9"] <- "Industry"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 10"] <- "Industry"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 11"] <- "Industry"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 12"] <- "Industry"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Industry: type 13"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 1"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 2"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 3"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 4"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 5"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 6"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 7"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 8"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 9"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 10"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 11"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 12"] <- "Industry"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Industry: type 13"] <- "Industry"
 
 #Trade
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Trade: type 1"] <- "Trade"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Trade: type 2"] <- "Trade"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Trade: type 3"] <- "Trade"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Trade: type 4"] <- "Trade"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Trade: type 5"] <- "Trade"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Trade: type 6"] <- "Trade"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Trade: type 7"] <- "Trade"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Trade: type 1"] <- "Trade"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Trade: type 2"] <- "Trade"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Trade: type 3"] <- "Trade"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Trade: type 4"] <- "Trade"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Trade: type 5"] <- "Trade"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Trade: type 6"] <- "Trade"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Trade: type 7"] <- "Trade"
 
 #Transport
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Transport: type 1"] <- "Transport"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Transport: type 2"] <- "Transport"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Transport: type 3"] <- "Transport"
-imputed_data$ORGANIZATION_TYPE[imputed_data$ORGANIZATION_TYPE == "Transport: type 4"] <- "Transport"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Transport: type 1"] <- "Transport"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Transport: type 2"] <- "Transport"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Transport: type 3"] <- "Transport"
+clean_data$ORGANIZATION_TYPE[clean_data$ORGANIZATION_TYPE == "Transport: type 4"] <- "Transport"
 ```
 
 ```{r}
-write.csv(imputed_data,"master_data.csv")
+master_data <- clean_data
+write.csv(master_data,"master_data.csv")
 ```
 
 
 ## EXPERIMENT: Principal Coponent Analysis (PCA)
 Data scientists use PCA analysis when they face a large set of correlated variables. This method allows us to summarize these correlated variables into principal components (a smaller number of representative variables). 
 
-Thus before we try to do PCA. Lets first see if we have large set of correlated variables in or data set (imputed_data).
+Thus before we try to do PCA. Lets first see if we have large set of correlated variables in or data set (master_data).
 
 
 ```{r}
-str(imputed_data)
+str(master_data)
 ```
 ### Test for colinearity ap p=0.05:
 
@@ -542,14 +350,14 @@ str(imputed_data)
 # Tis code shows us the correlation matrix in a nice table
 #install.packages("pander")
 library(pander)
-correlation_imputed<-pander(round(cor(imputed_data[,unlist(lapply(imputed_data, is.numeric))]),2))
+correlation_imputed<-pander(round(cor(master_data[,unlist(lapply(master_data, is.numeric))]),2))
 correlation_imputed
 
 #Use corr_cross() function to compute all correlations and return the highest and significant ones in a plot
 #install.packages("lares")
 library(lares)
 
-corr_cross(imputed_data[,unlist(lapply(imputed_data, is.numeric))],#dataset (only numerical)
+corr_cross(master_data[,unlist(lapply(master_data, is.numeric))],#dataset (only numerical)
   max_pvalue = 0.05, # display only significant correlations (at 5% level)
   top = 10 # display top 10 couples of variables (by correlation coefficient)
 )
@@ -576,7 +384,7 @@ opts_chunk$set(tidy.opts=list(width.cutoff=80),tidy=TRUE)
 PCA should only contain relevant continuous variables, and we can apply PCA to only those variables that have the same scale (e.g. all variables are stated in dollars).
 ```{r}
 # Next we have to Select variables aimed for PCA. It is important for make sure these variables are all metric.
-imputed_PCA <- imputed_data[,c(3:38)] # here we have removed SK_ID_CURR (ID variable), and TARGET (target, dependent variable)
+imputed_PCA <- master_data[,c(3:38)] # here we have removed SK_ID_CURR (ID variable), and TARGET (target, dependent variable)
 imputed_PCA <- imputed_PCA[,unlist(lapply(imputed_PCA, is.numeric))] # Here we have selected only numerical variables, all character variables were removed
 
 # For the PCA we have selected 24 variables
