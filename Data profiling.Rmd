@@ -8,7 +8,6 @@ editor_options:
 
 Loading the two datasets
 ```{r, echo=FALSE}
-#Loading the dataset
 application_data <- read.csv("application_data.csv")
 descriptions <- read.csv("columns_description.csv")
 ```
@@ -126,9 +125,9 @@ cardinalities %>%
   geom_segment( aes(x=rn, xend=rn, y=0, yend=pct_missing)) +
   geom_point(color = "blue") +
   geom_hline(yintercept=40, linetype="dashed", color = "red") +
-  labs(x = "", y = "Percentage missing",title = "Percentage missing values in each column") +
+  labs(x = "", y = "Percentage missing (%)") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  scale_x_discrete(limits=cardinalities$rn)
+  scale_x_discrete(limits=cardinalities$rn) 
 ```
 
 
@@ -213,14 +212,6 @@ We remove the 30-day variables since the 60 day variables all else equal must co
 master_data <- master_data[,!(names(master_data) %in% c("OBS_30_CNT_SOCIAL_CIRCLE","DEF_30_CNT_SOCIAL_CIRCLE"))]
 ```
 
-#WE MAKE CORRELATIONS PLOT TO FIND UNECCESSARY VARIABLES
-```{r}
-data_cor <- as.data.frame(cor(master_data[ ,sapply(master_data,is.numeric)], use = "complete.obs")[,2])
-names(data_cor)[1] <- "correlation"
-
-ggcorrplot(data_cor, lab = TRUE)
-
-```
 Making a new cardinalities for the dataset with final columns:
 ```{r}
 #counting max, min, mean, median of each of the columns
@@ -334,8 +325,6 @@ We now look at the children variable:
 imputed_data %>% 
   ggplot(aes(CNT_CHILDREN)) +
   geom_bar()
-
-table(imputed_data$CNT_CHILDREN)
 ```
 Since there are no observations between 14 and 19 children, the two with 19 children could be outliers. 
 
@@ -369,7 +358,6 @@ ggplot(imputed_data,aes(AMT_ANNUITY)) +
   geom_dots()
 ```
 
-
 We now look at the GOODS_PRICE variable:
 ```{r}
 ggplot(imputed_data,aes(AMT_GOODS_PRICE)) + 
@@ -382,6 +370,7 @@ ggplot(imputed_data,aes(OBS_60_CNT_SOCIAL_CIRCLE)) +
 
 table(imputed_data$OBS_60_CNT_SOCIAL_CIRCLE)
 ```
+
 The high observation looks like an outlier, so it is imputed by the mean:
 ```{r}
 imputed_data$OBS_60_CNT_SOCIAL_CIRCLE <- replace(imputed_data$OBS_60_CNT_SOCIAL_CIRCLE,imputed_data$OBS_60_CNT_SOCIAL_CIRCLE > 300, mean(imputed_data$OBS_60_CNT_SOCIAL_CIRCLE))
