@@ -270,8 +270,26 @@ imputed_data["NAME_TYPE_SUITE"] <- replace(imputed_data["NAME_TYPE_SUITE"],is.na
 imputed_data["OCCUPATION_TYPE"] <- replace(imputed_data["OCCUPATION_TYPE"],is.na(imputed_data["OCCUPATION_TYPE"]), "Unknown")
 ```
 
-We now have to go through the numerical values which have missing values:
+We now have to go through the interger and numerical values which have missing values:
 ```{r}
+#Starting with all integer variables and imputing the median
+imputed_data[,c("AMT_REQ_CREDIT_BUREAU_HOUR")][is.na(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_HOUR")])] <- median(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_HOUR")], na.rm = TRUE)
+
+imputed_data[,c("AMT_REQ_CREDIT_BUREAU_DAY")][is.na(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_DAY")])] <- median(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_DAY")], na.rm = TRUE)
+
+imputed_data[,c("AMT_REQ_CREDIT_BUREAU_WEEK")][is.na(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_WEEK")])] <- median(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_WEEK")], na.rm = TRUE)
+
+imputed_data[,c("AMT_REQ_CREDIT_BUREAU_MON")][is.na(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_MON")])] <- median(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_MON")], na.rm = TRUE)
+
+imputed_data[,c("AMT_REQ_CREDIT_BUREAU_QRT")][is.na(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_QRT")])] <- median(imputed_data[,c("AMT_REQ_CREDIT_BUREAU_QRT")], na.rm = TRUE)
+
+imputed_data[,c("CNT_FAM_MEMBERS")][is.na(imputed_data[,c("CNT_FAM_MEMBERS")])] <- median(imputed_data[,c("CNT_FAM_MEMBERS")], na.rm = TRUE)
+
+imputed_data[,c("DEF_60_CNT_SOCIAL_CIRCLE")][is.na(imputed_data[,c("DEF_60_CNT_SOCIAL_CIRCLE")])] <- median(imputed_data[,c("DEF_60_CNT_SOCIAL_CIRCLE")], na.rm = TRUE)
+
+imputed_data[,c("OBS_60_CNT_SOCIAL_CIRCLE")][is.na(imputed_data[,c("OBS_60_CNT_SOCIAL_CIRCLE")])] <- median(imputed_data[,c("OBS_60_CNT_SOCIAL_CIRCLE")], na.rm = TRUE)
+
+#Now imputing the remaning numerical variables with the mean of the variable
 for(i in 1:ncol(imputed_data))
   imputed_data[ , i][is.na(imputed_data[ , i])] <- mean(imputed_data[ , i], na.rm=TRUE)
 ```
