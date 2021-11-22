@@ -140,28 +140,6 @@ freq_table_long %>%
   theme(legend.position = "bottom")
 ```
 
-
-```{r}
-df_calculated <- master_data %>% count(CODE_GENDER,TARGET) %>% 
-  mutate(Percent_col = n / sum(n)) %>%
-  group_by(TARGET) %>%
-  group_by(CODE_GENDER) %>%
-  mutate(Percent = n/sum(n))
-
-ggplot(df_calculated,aes(x = CODE_GENDER, y = Percent_col, fill = factor(TARGET,labels = c("No", "Yes")))) +
-  geom_col(position = 'fill') +
-  scale_y_continuous(labels=scales::percent) +
-  geom_text(aes(label = scales::percent(Percent, accuracy = 0.1)), position = position_fill(vjust = 0.5), size = 3, color = "white") +
-  theme_half_open(12) +
-  ggtitle("Gender") +
-  ylab("Percentage") +
-  xlab("") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  theme(legend.justification = "top") +
-  scale_fill_discrete(name = "Payment difficulties") +
-  theme(legend.key.size = unit(1, 'cm'))
-```
-
 #Plot of categorical variables (ordinal scaled)
 ## First row
 ```{r}
@@ -197,6 +175,9 @@ df_calculated <- master_data %>% count(NAME_EDUCATION_TYPE,TARGET) %>%
   group_by(TARGET) %>%
   group_by(NAME_EDUCATION_TYPE) %>%
   mutate(Percent = n/sum(n))
+
+## Reordering to correct order of weekdays
+df_calculated$NAME_EDUCATION_TYPE <- factor(df_calculated$NAME_EDUCATION_TYPE, levels = c("Lower secondary","Secondary special","Incomplete higher","Higher education","Academic degree"))
 
 p2 <- ggplot(df_calculated,aes(x = NAME_EDUCATION_TYPE, y = Percent_col, fill = factor(TARGET,labels = c("No", "Yes")))) +
   geom_col(position = 'fill',show.legend = FALSE) +
@@ -422,7 +403,7 @@ p4 <- ggplot(master_data, aes(x = YEARS_PHONE_CHANGE, fill = factor(TARGET,label
 # Plot 5: Relative region population
 p5 <- ggplot(master_data, aes(x = REGION_POPULATION_RELATIVE, fill = factor(TARGET,labels = c("No", "Yes")))) + 
   geom_density(alpha = .5,show.legend = FALSE) +
-  scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) +
+  scale_x_continuous(expand = c(0, 0), limits = c(0, 0.1)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
   xlab("Relative region population") +
@@ -431,7 +412,7 @@ p5 <- ggplot(master_data, aes(x = REGION_POPULATION_RELATIVE, fill = factor(TARG
 # Plot 6: Total income
 p6 <- ggplot(master_data, aes(x = AMT_INCOME_TOTAL, fill = factor(TARGET,labels = c("No", "Yes")))) + 
   geom_density(alpha = .5,show.legend = FALSE) +
-  scale_x_continuous(expand = c(0, 0), limits = c(0, 5)) + #obs is changed to 5 to be able to see the density
+  scale_x_continuous(expand = c(0, 0), limits = c(-2.5, 5)) + #obs is changed to 5 to be able to see the density
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
   xlab("Total income") +
@@ -449,7 +430,7 @@ second_row <- plot_grid(plots[[1]], plots[[2]], plots[[3]], NULL,
 # Plot 7: Credit amount
 p7 <- ggplot(master_data, aes(x = AMT_CREDIT, fill = factor(TARGET,labels = c("No", "Yes")))) + 
   geom_density(alpha = .5,show.legend = FALSE) +
-  scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) +
+  scale_x_continuous(expand = c(0, 0), limits = c(-2.5, NA)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
   theme(legend.justification = "top") +
@@ -459,7 +440,7 @@ p7 <- ggplot(master_data, aes(x = AMT_CREDIT, fill = factor(TARGET,labels = c("N
 # Plot 8: Annuity amount
 p8 <- ggplot(master_data, aes(x = AMT_ANNUITY, fill = factor(TARGET,labels = c("No", "Yes")))) + 
   geom_density(alpha = .5,show.legend = FALSE) +
-  scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) +
+  scale_x_continuous(expand = c(0, 0), limits = c(-2.5, NA)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
   xlab("Annuity amount") +
@@ -468,7 +449,7 @@ p8 <- ggplot(master_data, aes(x = AMT_ANNUITY, fill = factor(TARGET,labels = c("
 # Plot 9: Goods price
 p9 <- ggplot(master_data, aes(x = AMT_GOODS_PRICE, fill = factor(TARGET,labels = c("No", "Yes")))) + 
   geom_density(alpha = .5,show.legend = FALSE) +
-  scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) +
+  scale_x_continuous(expand = c(0, 0), limits = c(-2.5, NA)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
   xlab("Goods price") +
@@ -486,4 +467,17 @@ third_row <- plot_grid(plots[[1]], plots[[2]], plots[[3]], NULL,
 plot_grid(first_row, second_row, third_row, ncol = 1)
 ```
 
+```{r}
+table(master_data$OBS_60_CNT_SOCIAL_CIRCLE)
+
+ggplot(master_data, aes(x = CNT_CHILDREN, fill = factor(TARGET,labels = c("No", "Yes")))) + 
+  geom_density(alpha = .5,show.legend = FALSE) +
+  scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
+  theme_half_open(12) +
+  xlab("Goods price") +
+  ylab("Density")
+
+
+```
 
