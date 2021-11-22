@@ -105,7 +105,7 @@ freq_table[2, 1] = "Target 0, feature NO"
 freq_table[3, 1] = "Target 1, feature YES"
 freq_table[4, 1] = "Target 1, feature NO"
 
-#reshapeing the data in order to make the plot
+#reshaping the data in order to make the plot
 freq_table_long <- freq_table %>%
   gather("Stat", "Value", -TARGET)
 
@@ -130,7 +130,7 @@ freq_table_long %>%
                               "Owns real estate", "Provided home tel.no.", "Contact add. ≠ work add.", 
                               "Type of loan (Cash = 1, revolving = 0)", "Accompanied when applying",
                               "Permanent add ≠ contact add.", "Permanent add. ≠ work add.")) + 
-  scale_fill_discrete(labels = c("Payment difficulties (0 = No), feature(1 = Yes)", 
+  scale_fill_discrete(labels = c("Payment difficulties (0 = No), feature(0 = No)", 
                                  "Payment difficulties (0 = No), feature (1 = Yes)",
                                  "Payment difficulties (1 = Yes), feature (0 = No)", 
                                  "Payment difficulties (1 = Yes), feature (1 = Yes)")) +
@@ -138,6 +138,28 @@ freq_table_long %>%
   theme_half_open(12) + 
   theme(axis.text.x = element_text(angle = 90, vjust = -0.5, hjust=1)) +
   theme(legend.position = "bottom")
+```
+
+
+```{r}
+df_calculated <- master_data %>% count(CODE_GENDER,TARGET) %>% 
+  mutate(Percent_col = n / sum(n)) %>%
+  group_by(TARGET) %>%
+  group_by(CODE_GENDER) %>%
+  mutate(Percent = n/sum(n))
+
+ggplot(df_calculated,aes(x = CODE_GENDER, y = Percent_col, fill = factor(TARGET,labels = c("No", "Yes")))) +
+  geom_col(position = 'fill') +
+  scale_y_continuous(labels=scales::percent) +
+  geom_text(aes(label = scales::percent(Percent, accuracy = 0.1)), position = position_fill(vjust = 0.5), size = 3, color = "white") +
+  theme_half_open(12) +
+  ggtitle("Gender") +
+  ylab("Percentage") +
+  xlab("") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  theme(legend.justification = "top") +
+  scale_fill_discrete(name = "Payment difficulties") +
+  theme(legend.key.size = unit(1, 'cm'))
 ```
 
 #Plot of categorical variables (ordinal scaled)
