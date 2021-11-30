@@ -140,6 +140,223 @@ freq_table_long %>%
   theme(legend.position = "bottom")
 ```
 
+```{r}
+newdata <- master_data
+
+#replacing the current labelling
+newdata["CODE_GENDER"][newdata["CODE_GENDER"] == "M"] <- 0
+newdata["CODE_GENDER"][newdata["CODE_GENDER"] == "F"] <- 1
+newdata$CODE_GENDER <- as.integer(newdata$CODE_GENDER)
+
+newdata["NAME_TYPE_SUITE"][newdata["NAME_TYPE_SUITE"] == "Unaccompanied"] <- 0
+newdata["NAME_TYPE_SUITE"][newdata["NAME_TYPE_SUITE"] == "Accompanied"] <- 1
+newdata$NAME_TYPE_SUITE <- as.integer(newdata$NAME_TYPE_SUITE)
+
+newdata["NAME_CONTRACT_TYPE"][newdata["NAME_CONTRACT_TYPE"] == "Cash loans"] <- 0
+newdata["NAME_CONTRACT_TYPE"][newdata["NAME_CONTRACT_TYPE"] == "Revolving loans"] <- 1
+newdata$NAME_CONTRACT_TYPE <- as.integer(newdata$NAME_CONTRACT_TYPE)
+
+newdata$FLAG_OWN_CAR <- as.integer(newdata$FLAG_OWN_CAR)
+newdata$FLAG_OWN_REALTY<- as.integer(newdata$FLAG_OWN_REALTY)
+
+#Gender
+df_calculated_gender <- newdata %>% count(CODE_GENDER,TARGET) %>% 
+  mutate(Percent_col = n / sum(n)) %>%
+  group_by(TARGET) %>%
+  group_by(CODE_GENDER) %>%
+  mutate(Percent = n/sum(n)) #calculating percentages of each target outcome within each housing type outcome
+df_calculated_gender$Variable <- "Gender (female = 1, male = 0)"
+names(df_calculated_gender)[1] <- "Feature"
+df_calculated_gender$Explanation1 <- "Target"
+df_calculated_gender$Explanation1 <- paste(df_calculated_gender$Explanation1,df_calculated_gender$TARGET)
+df_calculated_gender$Explanation2 <- "- Feature"
+df_calculated_gender$Explanation2 <- paste(df_calculated_gender$Explanation2,df_calculated_gender$Feature)
+df_calculated_gender$Explanation <- paste(df_calculated_gender$Explanation1,df_calculated_gender$Explanation2)
+df_calculated_gender <- df_calculated_gender[,!(names(df_calculated_gender) %in% c("Explanation1","Explanation2"))]
+
+#Accompanying party
+df_calculated_typesuite <- newdata %>% count(NAME_TYPE_SUITE,TARGET) %>% 
+  mutate(Percent_col = n / sum(n)) %>%
+  group_by(TARGET) %>%
+  group_by(NAME_TYPE_SUITE) %>%
+  mutate(Percent = n/sum(n)) #calculating percentages of each target outcome within each housing type outcome
+df_calculated_typesuite$Variable <- "Accompanied when applying"
+names(df_calculated_typesuite)[1] <- "Feature"
+df_calculated_typesuite$Explanation1 <- "Target"
+df_calculated_typesuite$Explanation1 <- paste(df_calculated_typesuite$Explanation1,df_calculated_typesuite$TARGET)
+df_calculated_typesuite$Explanation2 <- "- Feature"
+df_calculated_typesuite$Explanation2 <- paste(df_calculated_typesuite$Explanation2,df_calculated_typesuite$Feature)
+df_calculated_typesuite$Explanation <- paste(df_calculated_typesuite$Explanation1,df_calculated_typesuite$Explanation2)
+df_calculated_typesuite <- df_calculated_typesuite[,!(names(df_calculated_typesuite) %in% c("Explanation1","Explanation2"))]
+
+#Contract type
+df_calculated_contract <- newdata %>% count(NAME_CONTRACT_TYPE,TARGET) %>% 
+  mutate(Percent_col = n / sum(n)) %>%
+  group_by(TARGET) %>%
+  group_by(NAME_CONTRACT_TYPE) %>%
+  mutate(Percent = n/sum(n)) #calculating percentages of each target outcome within each housing type outcome
+df_calculated_contract$Variable <- "Type of loan (cash = 1, revolving = 0)"
+names(df_calculated_contract)[1] <- "Feature"
+df_calculated_contract$Explanation1 <- "Target"
+df_calculated_contract$Explanation1 <- paste(df_calculated_contract$Explanation1,df_calculated_contract$TARGET)
+df_calculated_contract$Explanation2 <- "- Feature"
+df_calculated_contract$Explanation2 <- paste(df_calculated_contract$Explanation2,df_calculated_contract$Feature)
+df_calculated_contract$Explanation <- paste(df_calculated_contract$Explanation1,df_calculated_contract$Explanation2)
+df_calculated_contract <- df_calculated_contract[,!(names(df_calculated_contract) %in% c("Explanation1","Explanation2"))]
+
+#Own realty
+df_calculated_realty <- newdata %>% count(FLAG_OWN_REALTY,TARGET) %>% 
+  mutate(Percent_col = n / sum(n)) %>%
+  group_by(TARGET) %>%
+  group_by(FLAG_OWN_REALTY) %>%
+  mutate(Percent = n/sum(n)) #calculating percentages of each target outcome within each housing type outcome
+df_calculated_realty$Variable <- "Owns real estate"
+names(df_calculated_realty)[1] <- "Feature"
+df_calculated_realty$Explanation1 <- "Target"
+df_calculated_realty$Explanation1 <- paste(df_calculated_realty$Explanation1,df_calculated_realty$TARGET)
+df_calculated_realty$Explanation2 <- "- Feature"
+df_calculated_realty$Explanation2 <- paste(df_calculated_realty$Explanation2,df_calculated_realty$Feature)
+df_calculated_realty$Explanation <- paste(df_calculated_realty$Explanation1,df_calculated_realty$Explanation2)
+df_calculated_realty <- df_calculated_realty[,!(names(df_calculated_realty) %in% c("Explanation1","Explanation2"))]
+
+#Own car
+df_calculated_car <- newdata %>% count(FLAG_OWN_CAR,TARGET) %>% 
+  mutate(Percent_col = n / sum(n)) %>%
+  group_by(TARGET) %>%
+  group_by(FLAG_OWN_CAR) %>%
+  mutate(Percent = n/sum(n)) #calculating percentages of each target outcome within each housing type outcome
+df_calculated_car$Variable <- "Owns a car"
+names(df_calculated_car)[1] <- "Feature"
+df_calculated_car$Explanation1 <- "Target"
+df_calculated_car$Explanation1 <- paste(df_calculated_car$Explanation1,df_calculated_car$TARGET)
+df_calculated_car$Explanation2 <- "- Feature"
+df_calculated_car$Explanation2 <- paste(df_calculated_car$Explanation2,df_calculated_car$Feature)
+df_calculated_car$Explanation <- paste(df_calculated_car$Explanation1,df_calculated_car$Explanation2)
+df_calculated_car <- df_calculated_car[,!(names(df_calculated_car) %in% c("Explanation1","Explanation2"))]
+
+#Provided work tel. no.
+df_calculated_emp_phone <- newdata %>% count(FLAG_EMP_PHONE,TARGET) %>% 
+  mutate(Percent_col = n / sum(n)) %>%
+  group_by(TARGET) %>%
+  group_by(FLAG_EMP_PHONE) %>%
+  mutate(Percent = n/sum(n)) #calculating percentages of each target outcome within each housing type outcome
+df_calculated_emp_phone$Variable <- "Provided work tel. no."
+names(df_calculated_emp_phone)[1] <- "Feature"
+df_calculated_emp_phone$Explanation1 <- "Target"
+df_calculated_emp_phone$Explanation1 <- paste(df_calculated_emp_phone$Explanation1,df_calculated_emp_phone$TARGET)
+df_calculated_emp_phone$Explanation2 <- "- Feature"
+df_calculated_emp_phone$Explanation2 <- paste(df_calculated_emp_phone$Explanation2,df_calculated_emp_phone$Feature)
+df_calculated_emp_phone$Explanation <- paste(df_calculated_emp_phone$Explanation1,df_calculated_emp_phone$Explanation2)
+df_calculated_emp_phone <- df_calculated_emp_phone[,!(names(df_calculated_emp_phone) %in% c("Explanation1","Explanation2"))]
+
+#Provided home tel. no
+df_calculated_home_phone <- newdata %>% count(FLAG_PHONE,TARGET) %>% 
+  mutate(Percent_col = n / sum(n)) %>%
+  group_by(TARGET) %>%
+  group_by(FLAG_PHONE) %>%
+  mutate(Percent = n/sum(n)) #calculating percentages of each target outcome within each housing type outcome
+df_calculated_home_phone$Variable <- "Provided home tel. no"
+names(df_calculated_home_phone)[1] <- "Feature"
+df_calculated_home_phone$Explanation1 <- "Target"
+df_calculated_home_phone$Explanation1 <- paste(df_calculated_home_phone$Explanation1,df_calculated_home_phone$TARGET)
+df_calculated_home_phone$Explanation2 <- "- Feature"
+df_calculated_home_phone$Explanation2 <- paste(df_calculated_home_phone$Explanation2,df_calculated_home_phone$Feature)
+df_calculated_home_phone$Explanation <- paste(df_calculated_home_phone$Explanation1,df_calculated_home_phone$Explanation2)
+df_calculated_home_phone <- df_calculated_home_phone[,!(names(df_calculated_home_phone) %in% c("Explanation1","Explanation2"))]
+
+#Provided e-mail
+df_calculated_email <- newdata %>% count(FLAG_EMAIL,TARGET) %>% 
+  mutate(Percent_col = n / sum(n)) %>%
+  group_by(TARGET) %>%
+  group_by(FLAG_EMAIL) %>%
+  mutate(Percent = n/sum(n)) #calculating percentages of each target outcome within each housing type outcome
+df_calculated_email$Variable <- "Provided e-mail"
+names(df_calculated_email)[1] <- "Feature"
+df_calculated_email$Explanation1 <- "Target"
+df_calculated_email$Explanation1 <- paste(df_calculated_email$Explanation1,df_calculated_email$TARGET)
+df_calculated_email$Explanation2 <- "- Feature"
+df_calculated_email$Explanation2 <- paste(df_calculated_email$Explanation2,df_calculated_email$Feature)
+df_calculated_email$Explanation <- paste(df_calculated_email$Explanation1,df_calculated_email$Explanation2)
+df_calculated_email <- df_calculated_email[,!(names(df_calculated_email) %in% c("Explanation1","Explanation2"))]
+
+#Permanent add. ≠ contract add.
+df_calculated_permanent_contact <- newdata %>% count(REG_CITY_NOT_LIVE_CITY,TARGET) %>% 
+  mutate(Percent_col = n / sum(n)) %>%
+  group_by(TARGET) %>%
+  group_by(REG_CITY_NOT_LIVE_CITY) %>%
+  mutate(Percent = n/sum(n)) #calculating percentages of each target outcome within each housing type outcome
+df_calculated_permanent_contact$Variable <- "Permanent add. ≠ contact add."
+names(df_calculated_permanent_contact)[1] <- "Feature"
+df_calculated_permanent_contact$Explanation1 <- "Target"
+df_calculated_permanent_contact$Explanation1 <- paste(df_calculated_permanent_contact$Explanation1,df_calculated_permanent_contact$TARGET)
+df_calculated_permanent_contact$Explanation2 <- "- Feature"
+df_calculated_permanent_contact$Explanation2 <- paste(df_calculated_permanent_contact$Explanation2,df_calculated_permanent_contact$Feature)
+df_calculated_permanent_contact$Explanation <- paste(df_calculated_permanent_contact$Explanation1,df_calculated_permanent_contact$Explanation2)
+df_calculated_permanent_contact <- df_calculated_permanent_contact[,!(names(df_calculated_permanent_contact) %in% c("Explanation1","Explanation2"))]
+
+#Permanent add. ≠ work add.
+df_calculated_permanent_work <- newdata %>% count(REG_CITY_NOT_WORK_CITY,TARGET) %>% 
+  mutate(Percent_col = n / sum(n)) %>%
+  group_by(TARGET) %>%
+  group_by(REG_CITY_NOT_WORK_CITY) %>%
+  mutate(Percent = n/sum(n)) #calculating percentages of each target outcome within each housing type outcome
+df_calculated_permanent_work$Variable <- "Permanent add. ≠ work add."
+names(df_calculated_permanent_work)[1] <- "Feature"
+df_calculated_permanent_work$Explanation1 <- "Target"
+df_calculated_permanent_work$Explanation1 <- paste(df_calculated_permanent_work$Explanation1,df_calculated_permanent_work$TARGET)
+df_calculated_permanent_work$Explanation2 <- "- Feature"
+df_calculated_permanent_work$Explanation2 <- paste(df_calculated_permanent_work$Explanation2,df_calculated_permanent_work$Feature)
+df_calculated_permanent_work$Explanation <- paste(df_calculated_permanent_work$Explanation1,df_calculated_permanent_work$Explanation2)
+df_calculated_permanent_work <- df_calculated_permanent_work[,!(names(df_calculated_permanent_work) %in% c("Explanation1","Explanation2"))]
+
+#Contact add. ≠ work add.
+df_calculated_contact_work <- newdata %>% count(LIVE_CITY_NOT_WORK_CITY,TARGET) %>% 
+  mutate(Percent_col = n / sum(n)) %>%
+  group_by(TARGET) %>%
+  group_by(LIVE_CITY_NOT_WORK_CITY) %>%
+  mutate(Percent = n/sum(n)) #calculating percentages of each target outcome within each housing type outcome
+df_calculated_contact_work$Variable <- "Contact add. ≠ work add."
+names(df_calculated_contact_work)[1] <- "Feature"
+df_calculated_contact_work$Explanation1 <- "Target"
+df_calculated_contact_work$Explanation1 <- paste(df_calculated_contact_work$Explanation1,df_calculated_contact_work$TARGET)
+df_calculated_contact_work$Explanation2 <- "- Feature"
+df_calculated_contact_work$Explanation2 <- paste(df_calculated_contact_work$Explanation2,df_calculated_contact_work$Feature)
+df_calculated_contact_work$Explanation <- paste(df_calculated_contact_work$Explanation1,df_calculated_contact_work$Explanation2)
+df_calculated_contact_work <- df_calculated_contact_work[,!(names(df_calculated_contact_work) %in% c("Explanation1","Explanation2"))]
+
+#Combining the individual tables
+total <- rbind(df_calculated_gender,df_calculated_typesuite,df_calculated_contract,df_calculated_realty,df_calculated_car,df_calculated_emp_phone,df_calculated_home_phone,df_calculated_email,df_calculated_permanent_contact,df_calculated_permanent_work,df_calculated_contact_work)
+total$Value <- round(total$Percent*100,1)
+
+total %>% 
+  ggplot(aes(x = Variable, y = Percent, fill = Explanation)) + 
+  geom_col(position = 'dodge') + 
+  geom_text(aes(label=Value),position = position_dodge(width = 1), vjust = -0.5, size = 3) + 
+  scale_y_continuous(labels=scales::percent, limits = c(0,1)) +
+  scale_fill_discrete(labels = c("Payment difficulties (0 = No), feature(0 = No)", 
+                                 "Payment difficulties (0 = No), feature (1 = Yes)",
+                                 "Payment difficulties (1 = Yes), feature (0 = No)", 
+                                 "Payment difficulties (1 = Yes), feature (1 = Yes)")) +
+  labs(x = "", y = "Percentage", fill = "") +
+  theme_half_open(12) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = -0.5, hjust=1)) +
+  theme(legend.position = "bottom")
+
+```
+
+
+```{r}
+total %>% ggplot(aes(x = Variable, y = Percent, fill = factor(TARGET,labels = c("No", "Yes")))) +
+  geom_col(position = 'fill') +
+  scale_y_continuous(labels=scales::percent) +
+  geom_text(aes(label = scales::percent(Percent, accuracy = 0.1)), position = position_fill(vjust = 0.5), size = 3, color = "white") +
+  theme_half_open(12) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylab("Percentage") +
+  xlab("") +
+  scale_fill_discrete(name = "Payment difficulties") 
+```
+
 #Plot of categorical variables (ordinal scaled)
 ## First row
 ```{r}
@@ -411,7 +628,7 @@ p5 <- ggplot(master_data, aes(x = REGION_POPULATION_RELATIVE, fill = factor(TARG
 
 # Plot 6: Total income
 p6 <- ggplot(master_data, aes(x = AMT_INCOME_TOTAL, fill = factor(TARGET,labels = c("No", "Yes")))) + 
-  geom_density(alpha = .5,show.legend = FALSE) +
+  geom_density(alpha = .5,show.legend = FALSE, adjust = 2) +
   scale_x_continuous(expand = c(0, 0), limits = c(-2.5, 5)) + #obs is changed to 5 to be able to see the density
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
@@ -429,7 +646,7 @@ second_row <- plot_grid(plots[[1]], plots[[2]], plots[[3]], NULL,
 # Creating the third row
 # Plot 7: Credit amount
 p7 <- ggplot(master_data, aes(x = AMT_CREDIT, fill = factor(TARGET,labels = c("No", "Yes")))) + 
-  geom_density(alpha = .5,show.legend = FALSE) +
+  geom_density(alpha = .5,show.legend = FALSE, adjust = 2) +
   scale_x_continuous(expand = c(0, 0), limits = c(-2.5, NA)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
@@ -439,7 +656,7 @@ p7 <- ggplot(master_data, aes(x = AMT_CREDIT, fill = factor(TARGET,labels = c("N
 
 # Plot 8: Annuity amount
 p8 <- ggplot(master_data, aes(x = AMT_ANNUITY, fill = factor(TARGET,labels = c("No", "Yes")))) + 
-  geom_density(alpha = .5,show.legend = FALSE) +
+  geom_density(alpha = .5,show.legend = FALSE, adjust = 2) +
   scale_x_continuous(expand = c(0, 0), limits = c(-2.5, NA)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
@@ -448,7 +665,7 @@ p8 <- ggplot(master_data, aes(x = AMT_ANNUITY, fill = factor(TARGET,labels = c("
 
 # Plot 9: Goods price
 p9 <- ggplot(master_data, aes(x = AMT_GOODS_PRICE, fill = factor(TARGET,labels = c("No", "Yes")))) + 
-  geom_density(alpha = .5,show.legend = FALSE) +
+  geom_density(alpha = .5,show.legend = FALSE, adjust = 3) +
   scale_x_continuous(expand = c(0, 0), limits = c(-2.5, NA)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
@@ -468,14 +685,13 @@ plot_grid(first_row, second_row, third_row, ncol = 1)
 ```
 
 ```{r}
-table(master_data$OBS_60_CNT_SOCIAL_CIRCLE)
-
-ggplot(master_data, aes(x = CNT_CHILDREN, fill = factor(TARGET,labels = c("No", "Yes")))) + 
-  geom_density(alpha = .5,show.legend = FALSE) +
-  scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) +
+ggplot(master_data, aes(x = AMT_CREDIT, fill = factor(TARGET))) + 
+  geom_density(alpha = .5, adjust = 2) +
+  scale_x_continuous(expand = c(0, 0), limits = c(-2.5, NA)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
-  xlab("Goods price") +
+  theme(legend.justification = "top") +
+  xlab("Credit amount") +
   ylab("Density")
 
 
