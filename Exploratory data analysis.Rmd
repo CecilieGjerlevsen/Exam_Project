@@ -23,7 +23,7 @@ pacman::p_load(
   psych)
 ```
 
-Standardizing the continuous variables:
+Standardizing the continuous variables to be able to visualise them in a comprehensible manner:
 ```{r}
 master_data$AMT_INCOME_TOTAL <- (master_data$AMT_INCOME_TOTAL - mean(master_data$AMT_INCOME_TOTAL)) / sd(master_data$AMT_INCOME_TOTAL)
 master_data$AMT_CREDIT <- (master_data$AMT_CREDIT - mean(master_data$AMT_CREDIT)) / sd(master_data$AMT_CREDIT)
@@ -45,7 +45,7 @@ master_data %>%
     labs(y = "Percentage", x = "Target variable", fill = "Client has repayment difficulties") +
     theme_half_open(12)
 ```
-#Plot of binary variables (nominal scaled)
+#Plot of categorical variables (binary - nominal scaled)
 Make all binary variables alike:
 - CODE_GENDER: F = 1, M = 0
 - NAME_TYPE_SUITE: Accompanied = 1, unaccompanied = 0
@@ -141,6 +141,7 @@ freq_table_long %>%
 ```
 
 ```{r}
+#creating placeholder for contemplated frequency table, want to get frequencies/percentages for categorical variables
 newdata <- master_data
 
 #replacing the current labelling
@@ -344,21 +345,8 @@ total %>%
 
 ```
 
-
-```{r}
-total %>% ggplot(aes(x = Variable, y = Percent, fill = factor(TARGET,labels = c("No", "Yes")))) +
-  geom_col(position = 'fill') +
-  scale_y_continuous(labels=scales::percent) +
-  geom_text(aes(label = scales::percent(Percent, accuracy = 0.1)), position = position_fill(vjust = 0.5), size = 3, color = "white") +
-  theme_half_open(12) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ylab("Percentage") +
-  xlab("") +
-  scale_fill_discrete(name = "Payment difficulties") 
-```
-
 #Plot of categorical variables (ordinal scaled)
-## First row
+## The first row in the visualisation is created
 ```{r}
 #Plot 1: Housing type
 df_calculated <- master_data %>% count(NAME_HOUSING_TYPE,TARGET) %>% 
@@ -433,7 +421,7 @@ first_row <- plot_grid(plots[[1]], plots[[2]], plots[[3]], legend,
   nrow = 1)
 ```
 
-## Second row
+## The second row in the visualisation is created
 ```{r}
 #Plot 4: Region rating
 df_calculated <- master_data %>% count(REGION_RATING_CLIENT_W_CITY,TARGET) %>% 
@@ -503,7 +491,7 @@ second_row <- plot_grid(plots[[1]], plots[[2]], plots[[3]], NULL,
 #Collecting all rows into one plot
 plot_grid(first_row, second_row, ncol = 1)
 ```
-## Second plot of ordinal scaled variables
+## Second plot of ordinal scaled variables for occupation and organisation type
 ```{r}
 #Plot 1: Occupation type
 df_calculated <- master_data %>% count(OCCUPATION_TYPE,TARGET) %>% 
@@ -560,21 +548,21 @@ second_row <- plot_grid(p2, NULL,
 #Collecting all rows into one plot
 plot_grid(first_row, second_row, ncol = 1)
 ```
-
 #Density plot of numerical variables
 ```{r}
 # Creating the first row
 # Plot 1: Age
 p1 <- ggplot(master_data, aes(x = AGE, fill = factor(TARGET,labels = c("No", "Yes")))) + 
   geom_density(alpha = .5) +
-  scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) +
+  scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) + #making the axes start at (0,0)
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
   theme(legend.justification = "top") +
-  xlab("Age") +
+  ggtitle("Age") +
+  xlab("") +
   ylab("Density") +
-  scale_fill_discrete(name = "Payment difficulties") +
-  theme(legend.key.size = unit(1, 'cm'))
+  scale_fill_discrete(name = "Payment difficulties") + #enteering the name of the legend
+  theme(legend.key.size = unit(1, 'cm')) #changing the size of the legend
 
 legend <- get_legend(p1)
 p1 <- p1 + theme(legend.position = "none")
@@ -585,7 +573,8 @@ p2 <- ggplot(master_data, aes(x = YEARS_REGISTRATION, fill = factor(TARGET,label
   scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
-  xlab("Years registration") +
+  ggtitle("Years registration") +
+  xlab("") +
   ylab("Density")
 
 # Plot 3: Years publish
@@ -594,7 +583,8 @@ p3 <- ggplot(master_data, aes(x = YEARS_PUBLISH, fill = factor(TARGET,labels = c
   scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
-  xlab("Years publish") +
+  ggtitle("Years ID publish") +
+  xlab("") +
   ylab("Density")
 
 # The three plots are aligned
@@ -614,7 +604,8 @@ p4 <- ggplot(master_data, aes(x = YEARS_PHONE_CHANGE, fill = factor(TARGET,label
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
   theme(legend.justification = "top") +
-  xlab("Years phone change") +
+  ggtitle("Years phone change") +
+  xlab("") +
   ylab("Density")
 
 # Plot 5: Relative region population
@@ -623,7 +614,8 @@ p5 <- ggplot(master_data, aes(x = REGION_POPULATION_RELATIVE, fill = factor(TARG
   scale_x_continuous(expand = c(0, 0), limits = c(0, 0.1)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
-  xlab("Relative region population") +
+  ggtitle("Relative region population") +
+  xlab("") +
   ylab("Density")
 
 # Plot 6: Total income
@@ -632,7 +624,8 @@ p6 <- ggplot(master_data, aes(x = AMT_INCOME_TOTAL, fill = factor(TARGET,labels 
   scale_x_continuous(expand = c(0, 0), limits = c(-2.5, 5)) + #obs is changed to 5 to be able to see the density
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
-  xlab("Total income") +
+  ggtitle("Total income") +
+  xlab("") +
   ylab("Density")
 
 plots <- align_plots(p4, p5, p6, align = 'v', axis = 'l')
@@ -651,7 +644,8 @@ p7 <- ggplot(master_data, aes(x = AMT_CREDIT, fill = factor(TARGET,labels = c("N
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
   theme(legend.justification = "top") +
-  xlab("Credit amount") +
+  ggtitle("Credit amount") +
+  xlab("") +
   ylab("Density")
 
 # Plot 8: Annuity amount
@@ -660,7 +654,8 @@ p8 <- ggplot(master_data, aes(x = AMT_ANNUITY, fill = factor(TARGET,labels = c("
   scale_x_continuous(expand = c(0, 0), limits = c(-2.5, NA)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
-  xlab("Annuity amount") +
+  ggtitle("Annuity amount") +
+  xlab("") +
   ylab("Density")
 
 # Plot 9: Goods price
@@ -669,7 +664,8 @@ p9 <- ggplot(master_data, aes(x = AMT_GOODS_PRICE, fill = factor(TARGET,labels =
   scale_x_continuous(expand = c(0, 0), limits = c(-2.5, NA)) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
   theme_half_open(12) +
-  xlab("Goods price") +
+  ggtitle("Goods price") +
+  xlab("") +
   ylab("Density")
 
 plots <- align_plots(p7, p8, p9, align = 'v', axis = 'l')
@@ -682,18 +678,5 @@ third_row <- plot_grid(plots[[1]], plots[[2]], plots[[3]], NULL,
 
 # All three rows are put together into one plot
 plot_grid(first_row, second_row, third_row, ncol = 1)
-```
-
-```{r}
-ggplot(master_data, aes(x = AMT_CREDIT, fill = factor(TARGET))) + 
-  geom_density(alpha = .5, adjust = 2) +
-  scale_x_continuous(expand = c(0, 0), limits = c(-2.5, NA)) +
-  scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
-  theme_half_open(12) +
-  theme(legend.justification = "top") +
-  xlab("Credit amount") +
-  ylab("Density")
-
-
 ```
 

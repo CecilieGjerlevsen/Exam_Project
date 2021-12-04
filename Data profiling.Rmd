@@ -28,7 +28,7 @@ pacman::p_load(
 
 #Data profiling
 ## Single-column profiling
-```{r, warning = FALSE}
+```{r, warning = FALSE, results = 'hide'}
 #Using options() to ensure that numbers are not displayed in scientific notation
 options(scipen = 999)
 
