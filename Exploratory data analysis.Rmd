@@ -140,7 +140,10 @@ freq_table_long %>%
   theme(legend.position = "bottom")
 ```
 
+#Second plot of categorical variables (binary - nominal scaled)
+This plot is created with a new split. Each feature will contain 100%, split up into the share of target 0 and the share of target 1.
 ```{r}
+#Following same procedure as the above plot
 #creating placeholder for contemplated frequency table, want to get frequencies/percentages for categorical variables
 newdata <- master_data
 
@@ -159,6 +162,8 @@ newdata$NAME_CONTRACT_TYPE <- as.integer(newdata$NAME_CONTRACT_TYPE)
 
 newdata$FLAG_OWN_CAR <- as.integer(newdata$FLAG_OWN_CAR)
 newdata$FLAG_OWN_REALTY<- as.integer(newdata$FLAG_OWN_REALTY)
+
+#The below calculates and creates each binary variables used for the new plot. 
 
 #Gender
 df_calculated_gender <- newdata %>% count(CODE_GENDER,TARGET) %>% 
@@ -325,10 +330,11 @@ df_calculated_contact_work$Explanation2 <- paste(df_calculated_contact_work$Expl
 df_calculated_contact_work$Explanation <- paste(df_calculated_contact_work$Explanation1,df_calculated_contact_work$Explanation2)
 df_calculated_contact_work <- df_calculated_contact_work[,!(names(df_calculated_contact_work) %in% c("Explanation1","Explanation2"))]
 
-#Combining the individual tables
+#Combining all the the individual variables from above into one.
 total <- rbind(df_calculated_gender,df_calculated_typesuite,df_calculated_contract,df_calculated_realty,df_calculated_car,df_calculated_emp_phone,df_calculated_home_phone,df_calculated_email,df_calculated_permanent_contact,df_calculated_permanent_work,df_calculated_contact_work)
 total$Value <- round(total$Percent*100,1)
 
+#plotting the binary variables 
 total %>% 
   ggplot(aes(x = Variable, y = Percent, fill = Explanation)) + 
   geom_col(position = 'dodge') + 
@@ -679,4 +685,4 @@ third_row <- plot_grid(plots[[1]], plots[[2]], plots[[3]], NULL,
 # All three rows are put together into one plot
 plot_grid(first_row, second_row, third_row, ncol = 1)
 ```
-f
+
